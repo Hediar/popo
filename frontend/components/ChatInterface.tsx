@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createChatStream } from '@/lib/api';
 import { ChatMessage } from '@/lib/types';
 import MessageList from './MessageList';
+import Sidebar from './Sidebar';
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -15,7 +16,7 @@ export default function ChatInterface() {
   // 메시지 리스트 자동 스크롤
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,9 +60,9 @@ export default function ChatInterface() {
         // 완료
         setIsLoading(false);
       },
-      (error) => {
+      (_error) => {
         // 에러 처리
-        console.error('Chat error:', error);
+        console.error('Chat error:', _error);
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMessageId
@@ -84,34 +85,81 @@ export default function ChatInterface() {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen max-w-4xl mx-auto">
-      <div className="bg-blue-600 text-white p-4">
-        <h1 className="text-2xl font-bold">POPO-AI 챗봇</h1>
-        <p className="text-sm text-blue-100">이력서 기반 AI 챗봇에게 질문해보세요</p>
-      </div>
+    <div className="flex h-screen w-full overflow-hidden">
+      <Sidebar />
 
-      <MessageList messages={messages} />
-      <div ref={messagesEndRef} />
+      {/* Main Chat Content */}
+      <main className="flex-1 flex flex-col bg-white dark:bg-background-dark/50 overflow-hidden">
+        {/* Header */}
+        <header className="h-16 flex-shrink-0 border-b border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="size-8 rounded-lg bg-primary flex items-center justify-center text-white">
+                <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+              </div>
+              <h2 className="font-bold text-lg tracking-tight">Career AI Assistant</h2>
+            </div>
+            <div className="hidden sm:flex items-center px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              Model v4.2
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <span className="material-symbols-outlined">notifications</span>
+            </button>
+            <button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <span className="material-symbols-outlined">history</span>
+            </button>
+            <button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <span className="material-symbols-outlined">more_vert</span>
+            </button>
+          </div>
+        </header>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t bg-white">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="질문을 입력하세요..."
-            disabled={isLoading}
-            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-          >
-            {isLoading ? '응답 중...' : '전송'}
-          </button>
+        {/* Chat Area */}
+        <MessageList messages={messages} />
+        <div ref={messagesEndRef} />
+
+        {/* Input Area */}
+        <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex-shrink-0">
+          <div className="max-w-4xl mx-auto relative">
+            <form onSubmit={handleSubmit}>
+              <div className="flex items-center gap-2 p-2 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+                <button
+                  type="button"
+                  className="p-2 rounded-lg text-slate-500 hover:text-primary transition-colors"
+                >
+                  <span className="material-symbols-outlined">attach_file</span>
+                </button>
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e);
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 resize-none dark:placeholder-slate-500 focus:outline-none"
+                  placeholder="Ask about your resume, skills, or projects..."
+                  rows={1}
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading || !input.trim()}
+                  className="p-2 rounded-lg bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="material-symbols-outlined text-[20px]">send</span>
+                </button>
+              </div>
+            </form>
+            <p className="text-[10px] text-center mt-3 text-slate-400 uppercase tracking-widest font-medium">
+              Career Assistant can make mistakes. Verify important information.
+            </p>
+          </div>
         </div>
-      </form>
+      </main>
     </div>
   );
 }
