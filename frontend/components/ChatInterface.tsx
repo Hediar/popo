@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { ChatMessage } from '@/lib/types';
+import { useEffect, useRef, useState } from 'react';
 import { createChatStream } from '@/lib/api';
+import { ChatMessage } from '@/lib/types';
 import MessageList from './MessageList';
 
 export default function ChatInterface() {
@@ -15,7 +15,7 @@ export default function ChatInterface() {
   // 메시지 리스트 자동 스크롤
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,9 +51,7 @@ export default function ChatInterface() {
         // 스트리밍 중 메시지 업데이트
         setMessages((prev) =>
           prev.map((msg) =>
-            msg.id === assistantMessageId
-              ? { ...msg, content: msg.content + content }
-              : msg
+            msg.id === assistantMessageId ? { ...msg, content: msg.content + content } : msg
           )
         );
       },

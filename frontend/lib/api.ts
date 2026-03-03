@@ -1,4 +1,4 @@
-import { ResumeData, InitializeResponse, SSEEvent } from './types';
+import { InitializeResponse, ResumeData, SSEEvent } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -55,7 +55,7 @@ export function createChatStream(
     }
   };
 
-  eventSource.onerror = (error) => {
+  eventSource.onerror = (_error) => {
     eventSource.close();
     onError(new Error('SSE connection error'));
   };

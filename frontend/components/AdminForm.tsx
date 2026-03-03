@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { ResumeData, Profile, Experience, Project, SkillCategory } from '@/lib/types';
 import { initializeResume } from '@/lib/api';
+import { Experience, Profile, Project, ResumeData, SkillCategory } from '@/lib/types';
 
 export default function AdminForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -25,7 +25,7 @@ export default function AdminForm() {
     },
   ]);
 
-  const [projects, setProjects] = useState<Project[]>([
+  const [projects, _setProjects] = useState<Project[]>([
     {
       title: '',
       description: '',
@@ -35,7 +35,7 @@ export default function AdminForm() {
     },
   ]);
 
-  const [skills, setSkills] = useState<SkillCategory[]>([
+  const [skills, _setSkills] = useState<SkillCategory[]>([
     {
       category: '',
       items: [],
@@ -73,9 +73,7 @@ export default function AdminForm() {
         {message && (
           <div
             className={`mb-4 p-4 rounded-lg ${
-              message.startsWith('✓')
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-700'
+              message.startsWith('✓') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
             }`}
           >
             {message}

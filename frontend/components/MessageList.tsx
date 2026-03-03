@@ -16,9 +16,7 @@ export default function MessageList({ messages }: MessageListProps) {
         >
           <div
             className={`max-w-[70%] rounded-lg p-4 ${
-              message.role === 'user'
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-100 text-gray-900'
+              message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-900'
             }`}
           >
             <div className="whitespace-pre-wrap break-words">{message.content}</div>
