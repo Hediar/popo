@@ -105,7 +105,7 @@ export default function ChatInterface() {
 						</div>
 					</div>
 					<div className="flex items-center gap-3">
-						<button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+						{/* <button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
 							<span className="material-symbols-outlined">notifications</span>
 						</button>
 						<button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
@@ -113,7 +113,7 @@ export default function ChatInterface() {
 						</button>
 						<button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
 							<span className="material-symbols-outlined">more_vert</span>
-						</button>
+						</button> */}
 					</div>
 				</header>
 
@@ -126,12 +126,12 @@ export default function ChatInterface() {
 					<div className="max-w-4xl mx-auto relative">
 						<form onSubmit={handleSubmit}>
 							<div className="flex items-center gap-2 p-2 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
-								<button
+								{/* <button
 									type="button"
 									className="p-2 rounded-lg text-slate-500 hover:text-primary transition-colors"
 								>
 									<span className="material-symbols-outlined">attach_file</span>
-								</button>
+								</button> */}
 								<textarea
 									value={input}
 									onChange={(e) => setInput(e.target.value)}
@@ -143,7 +143,7 @@ export default function ChatInterface() {
 									}}
 									disabled={isLoading}
 									className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 resize-none dark:placeholder-slate-500 focus:outline-none"
-									placeholder="Ask about your resume, skills, or projects..."
+									placeholder="저에 대해 궁금한게 무엇인가요?"
 									rows={1}
 								/>
 								<button
