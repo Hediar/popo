@@ -1,5 +1,6 @@
 package com.example.popobackend.config;
 
+import com.example.popobackend.util.NetworkUtils;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
@@ -30,7 +31,7 @@ public class RateLimitFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-        String clientIp = getClientIp(httpRequest);
+        String clientIp = NetworkUtils.getClientIp(httpRequest);
         Bucket bucket = getBucket(clientIp);
 
         if (bucket.tryConsume(1)) {
@@ -53,20 +54,5 @@ public class RateLimitFilter implements Filter {
         return Bucket.builder()
                 .addLimit(limit)
                 .build();
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        // 여러 IP가 있는 경우 첫 번째 IP 사용
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        return ip;
     }
 }
