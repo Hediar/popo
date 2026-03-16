@@ -111,6 +111,38 @@ public class ProfileService {
             context.append("\n관심 분야: ").append(profile.getInterests()).append("\n");
         }
 
+        // 자격증 (JSONB 파싱)
+        if (profile.getCertifications() != null && !profile.getCertifications().isEmpty()) {
+            context.append("\n자격증:\n");
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                List<Map<String, String>> certifications = mapper.readValue(
+                    profile.getCertifications(),
+                    new TypeReference<List<Map<String, String>>>() {}
+                );
+
+                for (Map<String, String> cert : certifications) {
+                    String name = cert.getOrDefault("name", "");
+                    String issuer = cert.getOrDefault("issuer", "");
+                    String date = cert.getOrDefault("date", "");
+
+                    if (!name.isEmpty()) {
+                        context.append("- ").append(name);
+                        if (!issuer.isEmpty()) {
+                            context.append(" (").append(issuer).append(")");
+                        }
+                        if (!date.isEmpty()) {
+                            context.append(" - ").append(date);
+                        }
+                        context.append("\n");
+                    }
+                }
+            } catch (Exception e) {
+                // JSON 파싱 실패 시 원본 그대로 표시
+                context.append(profile.getCertifications()).append("\n");
+            }
+        }
+
         // 연락처 및 링크
         context.append("\n연락처 및 링크:\n");
         if (profile.getEmail() != null && !profile.getEmail().isEmpty()) {
@@ -121,9 +153,6 @@ public class ProfileService {
         }
         if (profile.getBlogUrl() != null && !profile.getBlogUrl().isEmpty()) {
             context.append("- 블로그: ").append(profile.getBlogUrl()).append("\n");
-        }
-        if (profile.getLinkedinUrl() != null && !profile.getLinkedinUrl().isEmpty()) {
-            context.append("- LinkedIn: ").append(profile.getLinkedinUrl()).append("\n");
         }
 
         context.append("\n");

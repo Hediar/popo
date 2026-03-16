@@ -87,6 +87,16 @@ public class Profile {
     private String blogUrl;
 
     /**
+     * 자격증 목록 (JSONB)
+     * 예: [
+     *   {"name": "정보처리기사", "issuer": "한국산업인력공단", "date": "2025.09"},
+     *   {"name": "AWS Solutions Architect", "issuer": "Amazon", "date": "2024.03"}
+     * ]
+     */
+    @Column(columnDefinition = "jsonb")
+    private String certifications;
+
+    /**
      * 추가 메타데이터 (JSON)
      */
     @Column(columnDefinition = "jsonb")
