@@ -1,4 +1,4 @@
-import { InitializeResponse, ResumeData, SSEEvent } from './types';
+import { InitializeResponse, ResumeData, SSEEvent, ChatAPIResponse } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -61,4 +61,31 @@ export function createChatStream(
   };
 
   return eventSource;
+}
+
+// 채팅 메시지 전송 (POST 기반)
+export async function sendChatMessage(message: string): Promise<ChatAPIResponse> {
+  const response = await fetch(`${API_URL}/api/chat/message`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ message }),
+  });
+
+  // 정상 응답
+  if (response.ok) {
+    const data = (await response.json()) as ChatAPIResponse;
+    return data;
+  }
+
+  // 오류 응답 본문을 최대한 읽어 사용자에게 표시 가능하도록 처리
+  try {
+    const data = await response.json();
+    const errorMsg = typeof data === 'object' && data && 'message' in data ? data.message : JSON.stringify(data);
+    throw new Error(errorMsg || 'Chat API error');
+  } catch {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
 }

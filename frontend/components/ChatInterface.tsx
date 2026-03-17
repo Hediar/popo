@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createChatStream } from "@/lib/api";
+import { createChatStream, sendChatMessage } from "@/lib/api";
 import { ChatMessage } from "@/lib/types";
 import MessageList from "./MessageList";
 
@@ -11,6 +11,9 @@ export default function ChatInterface() {
 	const [isLoading, setIsLoading] = useState(false);
 	const eventSourceRef = useRef<EventSource | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+
+	// 기본값을 POST로 사용하고, 명시적으로 true일 때만 스트리밍 사용
+	const useStream = process.env.NEXT_PUBLIC_CHAT_USE_STREAM === "true";
 
 	// 메시지 리스트 자동 스크롤
 	useEffect(() => {
@@ -38,42 +41,88 @@ export default function ChatInterface() {
 		const assistantMessage: ChatMessage = {
 			id: assistantMessageId,
 			role: "assistant",
-			content: "",
+			content: useStream ? "" : "응답 생성 중...",
 			timestamp: new Date(),
+			isError: false,
 		};
 
 		setMessages((prev) => [...prev, assistantMessage]);
 
-		// SSE 스트리밍 시작
-		eventSourceRef.current = createChatStream(
-			userMessage.content,
-			(content) => {
-				// 스트리밍 중 메시지 업데이트
+		if (useStream) {
+			// SSE 스트리밍 시도
+			eventSourceRef.current = createChatStream(
+				userMessage.content,
+				(content) => {
+					setMessages((prev) =>
+						prev.map((msg) =>
+							msg.id === assistantMessageId
+								? { ...msg, content: msg.content + content }
+								: msg,
+						),
+					);
+				},
+				() => {
+					setIsLoading(false);
+				},
+				async (_error) => {
+					// 스트리밍 에러 시 POST API로 폴백
+					console.error("Stream error, falling back to POST:", _error);
+					eventSourceRef.current?.close();
+					eventSourceRef.current = null;
+					try {
+						const res = await sendChatMessage(userMessage.content);
+						setMessages((prev) =>
+							prev.map((msg) =>
+								msg.id === assistantMessageId
+									? { ...msg, content: res.message, isError: false }
+									: msg,
+							),
+						);
+					} catch (err: any) {
+						const errorText =
+							typeof err?.message === "string" && err.message.trim().length > 0
+								? err.message
+								: "죄송합니다. 오류가 발생했습니다.";
+						setMessages((prev) =>
+							prev.map((msg) =>
+								msg.id === assistantMessageId
+									? { ...msg, content: errorText, isError: true }
+									: msg,
+							),
+						);
+					} finally {
+						setIsLoading(false);
+					}
+				},
+			);
+		} else {
+			// POST 기반 채팅 요청
+			try {
+				const res = await sendChatMessage(userMessage.content);
 				setMessages((prev) =>
 					prev.map((msg) =>
 						msg.id === assistantMessageId
-							? { ...msg, content: msg.content + content }
+							? { ...msg, content: res.message, isError: false }
 							: msg,
 					),
 				);
-			},
-			() => {
-				// 완료
-				setIsLoading(false);
-			},
-			(_error) => {
-				// 에러 처리
-				console.error("Chat error:", _error);
+			} catch (err: any) {
+				console.error("Chat error:", err);
+				const errorText =
+					typeof err?.message === "string" && err.message.trim().length > 0
+						? err.message
+						: "죄송합니다. 오류가 발생했습니다.";
 				setMessages((prev) =>
 					prev.map((msg) =>
 						msg.id === assistantMessageId
-							? { ...msg, content: "죄송합니다. 오류가 발생했습니다." }
+							? { ...msg, content: errorText, isError: true }
 							: msg,
 					),
 				);
+			} finally {
 				setIsLoading(false);
-			},
-		);
+			}
+		}
 	};
 
 	// 컴포넌트 언마운트 시 EventSource 정리
@@ -104,17 +153,6 @@ export default function ChatInterface() {
 							Model v4.2
 						</div>
 					</div>
-					<div className="flex items-center gap-3">
-						{/* <button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-							<span className="material-symbols-outlined">notifications</span>
-						</button>
-						<button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-							<span className="material-symbols-outlined">history</span>
-						</button>
-						<button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-							<span className="material-symbols-outlined">more_vert</span>
-						</button> */}
-					</div>
 				</header>
 
 				{/* Chat Area */}
@@ -126,12 +164,6 @@ export default function ChatInterface() {
 					<div className="max-w-4xl mx-auto relative">
 						<form onSubmit={handleSubmit}>
 							<div className="flex items-center gap-2 p-2 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
-								{/* <button
-									type="button"
-									className="p-2 rounded-lg text-slate-500 hover:text-primary transition-colors"
-								>
-									<span className="material-symbols-outlined">attach_file</span>
-								</button> */}
 								<textarea
 									value={input}
 									onChange={(e) => setInput(e.target.value)}
@@ -146,15 +178,17 @@ export default function ChatInterface() {
 									placeholder="저에 대해 궁금한게 무엇인가요?"
 									rows={1}
 								/>
-								<button
-									type="submit"
-									disabled={isLoading || !input.trim()}
-									className="p-2 rounded-lg bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-								>
-									<span className="material-symbols-outlined text-[20px]">
-										send
-									</span>
-								</button>
+				<button
+					type="submit"
+					disabled={isLoading || !input.trim()}
+					className="p-2 rounded-lg bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed min-w-9 min-h-9"
+				>
+					{isLoading ? (
+						<span className="inline-block size-5 border-2 border-white/50 border-t-white rounded-full animate-spin" aria-label="로딩 중" />
+					) : (
+						<span className="material-symbols-outlined text-[20px]">send</span>
+					)}
+				</button>
 							</div>
 						</form>
 						<p className="text-[10px] text-center mt-3 text-slate-400 uppercase tracking-widest font-medium">
