@@ -11,6 +11,7 @@ export default function MessageList({ messages }: MessageListProps) {
     <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
       {messages.map((message) => {
         const isUser = message.role === 'user';
+        const isError = !!message.isError;
         const timeString = message.timestamp.toLocaleTimeString('en-US', {
           hour: '2-digit',
           minute: '2-digit',
@@ -48,7 +49,15 @@ export default function MessageList({ messages }: MessageListProps) {
                 </span>
                 <span className="text-[10px] text-slate-400">{timeString}</span>
               </div>
-              <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-2xl rounded-tl-none shadow-sm text-sm leading-relaxed">
+              <div
+                className={
+                  `${
+                    isError
+                      ? 'bg-red-100 border border-red-200 text-red-900 dark:bg-red-950/40 dark:border-red-800'
+                      : 'bg-slate-100 dark:bg-slate-800'
+                  } p-4 rounded-2xl rounded-tl-none shadow-sm text-sm leading-relaxed`
+                }
+              >
                 {message.content}
               </div>
             </div>

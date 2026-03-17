@@ -40,6 +40,8 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  // 백엔드 오류 여부 (오류 시 채팅 버블을 연한 빨간색으로 표시)
+  isError?: boolean;
 }
 
 // SSE 이벤트 타입
@@ -53,4 +55,10 @@ export interface InitializeResponse {
   success: boolean;
   message: string;
   sectionsCreated: number;
+}
+
+// 채팅 API 응답 타입 (POST /api/chat/message)
+export interface ChatAPIResponse {
+  sessionId: string;
+  message: string;
 }
