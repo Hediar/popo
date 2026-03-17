@@ -1,5 +1,6 @@
 package com.example.popobackend.service;
 
+import com.example.popobackend.exception.OpenAIException;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
@@ -56,14 +57,23 @@ public class OpenAIService {
 
             return response;
         } catch (Exception e) {
-            // 에러 발생 시 폴백 응답
-            return String.format("""
-                    죄송합니다. 현재 AI 응답 생성 중 문제가 발생했습니다.
+            // 에러 메시지 분석
+            String errorMessage = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
 
-                    에러: %s
-
-                    잠시 후 다시 시도해주세요.
-                    """, e.getMessage());
+            // HTTP 에러 코드 또는 키워드 기반 예외 분류
+            if (errorMessage.contains("401") || errorMessage.contains("unauthorized") || errorMessage.contains("invalid api key")) {
+                throw OpenAIException.unauthorized("OpenAI API 인증에 실패했습니다. API 키를 확인해주세요.", e);
+            } else if (errorMessage.contains("429") || errorMessage.contains("rate limit") || errorMessage.contains("too many requests")) {
+                throw OpenAIException.rateLimitExceeded("OpenAI API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.", e);
+            } else if (errorMessage.contains("503") || errorMessage.contains("service unavailable")) {
+                throw OpenAIException.serviceUnavailable("OpenAI 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.", e);
+            } else if (errorMessage.contains("500") || errorMessage.contains("internal server error")) {
+                throw OpenAIException.serverError("OpenAI 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", e);
+            } else if (errorMessage.contains("400") || errorMessage.contains("bad request") || errorMessage.contains("invalid request")) {
+                throw OpenAIException.badRequest("잘못된 요청입니다. 요청 내용을 확인해주세요.", e);
+            } else {
+                throw OpenAIException.unknown("AI 응답 생성 중 오류가 발생했습니다: " + e.getMessage(), e);
+            }
         }
     }
 
