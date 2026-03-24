@@ -150,7 +150,7 @@ export default function ChatInterface() {
 							<h2 className="font-bold text-lg tracking-tight">POPO</h2>
 						</div>
 						<div className="hidden sm:flex items-center px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-							Model v4.2
+							개발자 - 이세령
 						</div>
 					</div>
 				</header>
@@ -178,17 +178,22 @@ export default function ChatInterface() {
 									placeholder="저에 대해 궁금한게 무엇인가요?"
 									rows={1}
 								/>
-				<button
-					type="submit"
-					disabled={isLoading || !input.trim()}
-					className="p-2 rounded-lg bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed min-w-9 min-h-9"
-				>
-					{isLoading ? (
-						<span className="inline-block size-5 border-2 border-white/50 border-t-white rounded-full animate-spin" aria-label="로딩 중" />
-					) : (
-						<span className="material-symbols-outlined text-[20px]">send</span>
-					)}
-				</button>
+								<button
+									type="submit"
+									disabled={isLoading || !input.trim()}
+									className="p-2 rounded-lg bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed min-w-9 min-h-9"
+								>
+									{isLoading ? (
+										<span
+											className="inline-block size-5 border-2 border-white/50 border-t-white rounded-full animate-spin"
+											aria-label="로딩 중"
+										/>
+									) : (
+										<span className="material-symbols-outlined text-[20px]">
+											send
+										</span>
+									)}
+								</button>
 							</div>
 						</form>
 						<p className="text-[10px] text-center mt-3 text-slate-400 uppercase tracking-widest font-medium">
