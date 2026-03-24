@@ -4,8 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { createChatStream, sendChatMessage } from "@/lib/api";
 import { ChatMessage } from "@/lib/types";
 import MessageList from "./MessageList";
+import IntroShowcase from "./IntroShowcase";
 
-export default function ChatInterface() {
+interface ChatInterfaceProps {
+    introImages?: string[];
+}
+
+export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [input, setInput] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
@@ -156,7 +161,11 @@ export default function ChatInterface() {
 				</header>
 
 				{/* Chat Area */}
-				<MessageList messages={messages} />
+				{messages.length === 0 ? (
+					<IntroShowcase images={introImages} />
+				) : (
+					<MessageList messages={messages} />
+				)}
 				<div ref={messagesEndRef} />
 
 				{/* Input Area */}
