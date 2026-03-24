@@ -160,12 +160,9 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 					</div>
 				</header>
 
-				{/* Chat Area */}
-				{messages.length === 0 ? (
-					<IntroShowcase images={introImages} />
-				) : (
-					<MessageList messages={messages} />
-				)}
+				{/* Intro + Chat Area */}
+				<IntroShowcase images={introImages} />
+				<MessageList messages={messages} />
 				<div ref={messagesEndRef} />
 
 				{/* Input Area */}
