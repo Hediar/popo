@@ -1,5 +1,6 @@
 package com.example.popobackend.entity;
 
+import com.example.popobackend.converter.VectorConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -52,10 +53,11 @@ public class PortfolioData {
     /**
      * 임베딩 벡터 (pgvector)
      * OpenAI Embeddings API로 생성된 벡터
-     * TODO: pgvector extension 설치 후 vector 타입으로 변경
+     * text-embedding-3-small: 1536 dimensions
      */
-    // @Column(columnDefinition = "vector(1536)")  // OpenAI embeddings dimension
-    // private float[] embedding;
+    @Column(columnDefinition = "vector(1536)")
+    @Convert(converter = VectorConverter.class)
+    private float[] embedding;
 
     /**
      * 출처/태그 (검색 결과에 표시)

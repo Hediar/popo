@@ -32,7 +32,8 @@ INSERT INTO profile (
     'https://github.com/Hediar',
     'https://velog.io/@hediar',
     '[
-        {"name": "정보처리기사", "issuer": "한국산업인력공단", "date": "2025.09"}
+        {"name": "정보처리기사", "issuer": "한국산업인력공단", "date": "2025.09"},
+        {"name": "SQLD", "issuer": "한국데이터산업진흥원", "date": "2026.03"}
     ]'::jsonb,
     true,
     NOW(),

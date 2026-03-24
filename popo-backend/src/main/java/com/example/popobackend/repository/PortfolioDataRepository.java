@@ -63,33 +63,33 @@ public interface PortfolioDataRepository extends JpaRepository<PortfolioData, Lo
      * @param limit 반환할 결과 개수
      * @return 유사도 순으로 정렬된 포트폴리오 데이터
      */
-    // @Query(value = """
-    //     SELECT id, type, title, content, metadata, source, priority,
-    //            1 - (embedding <=> CAST(:queryEmbedding AS vector)) AS similarity
-    //     FROM portfolio_data
-    //     WHERE is_public = true
-    //     ORDER BY embedding <=> CAST(:queryEmbedding AS vector)
-    //     LIMIT :limit
-    //     """, nativeQuery = true)
-    // List<Object[]> findSimilar(@Param("queryEmbedding") float[] queryEmbedding,
-    //                           @Param("limit") int limit);
+     @Query(value = """
+         SELECT id, type, title, content, metadata, source, priority,
+                1 - (embedding <=> CAST(:queryEmbedding AS vector)) AS similarity
+         FROM portfolio_data
+         WHERE is_public = true
+         ORDER BY embedding <=> CAST(:queryEmbedding AS vector)
+         LIMIT :limit
+         """, nativeQuery = true)
+     List<Object[]> findSimilar(@Param("queryEmbedding") float[] queryEmbedding,
+                               @Param("limit") int limit);
 
     /**
      * 키워드 필터링 + 벡터 검색 조합
      * TODO: pgvector extension 설치 후 활성화
      */
-    // @Query(value = """
-    //     SELECT id, type, title, content, metadata, source, priority,
-    //            1 - (embedding <=> CAST(:queryEmbedding AS vector)) AS similarity
-    //     FROM portfolio_data
-    //     WHERE is_public = true
-    //     AND id IN :filteredIds
-    //     ORDER BY embedding <=> CAST(:queryEmbedding AS vector)
-    //     LIMIT :limit
-    //     """, nativeQuery = true)
-    // List<Object[]> findSimilarWithFilter(
-    //     @Param("queryEmbedding") float[] queryEmbedding,
-    //     @Param("filteredIds") List<Long> filteredIds,
-    //     @Param("limit") int limit
-    // );
+     @Query(value = """
+         SELECT id, type, title, content, metadata, source, priority,
+                1 - (embedding <=> CAST(:queryEmbedding AS vector)) AS similarity
+         FROM portfolio_data
+         WHERE is_public = true
+         AND id IN :filteredIds
+         ORDER BY embedding <=> CAST(:queryEmbedding AS vector)
+         LIMIT :limit
+         """, nativeQuery = true)
+     List<Object[]> findSimilarWithFilter(
+         @Param("queryEmbedding") float[] queryEmbedding,
+         @Param("filteredIds") List<Long> filteredIds,
+         @Param("limit") int limit
+     );
 }

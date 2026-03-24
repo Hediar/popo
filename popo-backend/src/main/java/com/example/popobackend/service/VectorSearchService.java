@@ -17,6 +17,9 @@ public class VectorSearchService {
     @Autowired
     private PortfolioDataRepository portfolioDataRepository;
 
+    @Autowired
+    private EmbeddingService embeddingService;
+
     /**
      * 방문자 질문을 기반으로 포트폴리오 데이터 벡터 검색 (RAG 패턴)
      *
@@ -48,23 +51,61 @@ public class VectorSearchService {
      * @return 관련 포트폴리오 데이터 (유사도 순)
      */
     public List<SearchResult> search(String query) {
-        // 1단계: 키워드 추출
+        try {
+            // 1단계: 쿼리를 벡터로 변환
+            float[] queryEmbedding = embeddingService.createEmbedding(query);
+
+            if (queryEmbedding == null) {
+                // 임베딩 실패 시 키워드 검색으로 폴백
+                return keywordSearch(query);
+            }
+
+            // 2단계: 벡터 유사도 검색 (상위 5개)
+            List<Object[]> results = portfolioDataRepository.findSimilar(queryEmbedding, 5);
+
+            // 3단계: SearchResult로 변환
+            return results.stream()
+                .map(this::convertObjectArrayToSearchResult)
+                .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            // 벡터 검색 실패 시 키워드 검색으로 폴백
+            System.err.println("Vector search failed, falling back to keyword search: " + e.getMessage());
+            return keywordSearch(query);
+        }
+    }
+
+    /**
+     * 키워드 검색 (벡터 검색 실패 시 폴백)
+     */
+    private List<SearchResult> keywordSearch(String query) {
         List<String> keywords = extractKeywords(query);
 
         if (keywords.isEmpty()) {
-            // 키워드가 없으면 전체 데이터 반환 (우선순위순)
             return searchAll();
         }
 
-        // 2단계: 키워드 매칭 필터링
         List<PortfolioData> filteredData = filterByKeywords(keywords);
-
-        // 3단계: 벡터 검색 (TODO: pgvector 구현 후 활성화)
-        // filteredData를 대상으로 벡터 유사도 검색
-        // List<SearchResult> vectorResults = vectorSearch(query, filteredData);
-
-        // 현재는 키워드 매칭 결과만 반환
         return convertToSearchResults(filteredData);
+    }
+
+    /**
+     * Object[] (DB 결과)를 SearchResult로 변환
+     * Object[]: [id, type, title, content, metadata, source, priority, similarity]
+     */
+    private SearchResult convertObjectArrayToSearchResult(Object[] row) {
+        String title = row[2] != null ? row[2].toString() : "";
+        String content = row[3] != null ? row[3].toString() : "";
+        String source = row[5] != null ? row[5].toString() : row[1] + "-" + row[0];
+        Double similarity = row[7] != null ? ((Number) row[7]).doubleValue() : 1.0;
+
+        // 제목과 내용 결합
+        String formattedContent = title;
+        if (content != null && !content.isEmpty()) {
+            formattedContent = formattedContent.isEmpty() ? content : formattedContent + ": " + content;
+        }
+
+        return new SearchResult(formattedContent, similarity, source);
     }
 
     /**
@@ -91,7 +132,7 @@ public class VectorSearchService {
     private boolean isStopWord(String word) {
         // 한국어 불용어
         List<String> stopWords = Arrays.asList(
-            "은", "는", "이", "가", "을", "를", "의", "에", "에서", "으로", "로",
+            "은", "는", "이", "가", "을", "를", "의", "에", "에서", "으로", "로", "랑",
             "과", "와", "하다", "되다", "있다", "없다", "이다",
             "그", "저", "이거", "저거", "뭐", "어떤", "어떻게", "무슨"
         );
