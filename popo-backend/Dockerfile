@@ -1,7 +1,8 @@
 # Multi-stage build for optimized image size
 
 # Stage 1: Build
-FROM gradle:8.5-jdk17 AS build
+# Using Gradle 8.x (latest) for Spring Boot 4.0.3 compatibility
+FROM gradle:8-jdk17 AS build
 
 WORKDIR /app
 
