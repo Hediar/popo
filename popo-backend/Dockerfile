@@ -31,12 +31,14 @@ USER spring:spring
 # Copy JAR from build stage
 COPY --from=build /app/build/libs/*.jar app.jar
 
-# Expose port
+# Expose port (documentation only - actual port set by PORT env var)
+# Render provides PORT=10000, local default is 8080
 EXPOSE 8080
 
-# Health check
+# Health check (for local Docker usage)
+# Note: Render uses its own health check system
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/health || exit 1
 
 # Run application
 ENTRYPOINT ["java", \
