@@ -160,13 +160,12 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 					</div>
 				</header>
 
-				{/* Chat Area */}
-				{messages.length === 0 ? (
+				{/* Intro + Chat Area (shared scroll container) */}
+				<div className="flex-1 overflow-y-auto custom-scrollbar">
 					<IntroShowcase images={introImages} />
-				) : (
 					<MessageList messages={messages} />
-				)}
-				<div ref={messagesEndRef} />
+					<div ref={messagesEndRef} />
+				</div>
 
 				{/* Input Area */}
 				<div className="p-6 border-t border-slate-200 dark:border-slate-800 flex-shrink-0">

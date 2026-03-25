@@ -7,16 +7,16 @@ interface IntroShowcaseProps {
 }
 
 export default function IntroShowcase({
-	images: imagePaths,
+    images: imagePaths,
 }: IntroShowcaseProps) {
 	// Fallback to an empty list if not provided
 	const images = (imagePaths || []).map((src) => ({
 		src: encodeURI(src),
 		alt: decodeURI(src.split("/").pop() || src),
 	}));
-	return (
-		<div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-			<div className="max-w-4xl mx-auto space-y-8">
+    return (
+        <div className="p-6">
+            <div className="max-w-4xl mx-auto space-y-8">
 				<section className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
 					<h1 className="text-xl font-bold mb-3">
 						안녕하세요! 저는 이세령입니다.
