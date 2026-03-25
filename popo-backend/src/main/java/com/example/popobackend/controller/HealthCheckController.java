@@ -13,12 +13,12 @@ import java.util.Map;
  * API 정상 작동 확인용 헬스체크 컨트롤러
  */
 @RestController
-@RequestMapping("/api")
 public class HealthCheckController {
 
     /**
-     * 헬스체크 엔드포인트
-     * GET /api/health
+     * 헬스체크 엔드포인트 (루트 경로용)
+     * GET /health
+     * Render의 기본 health check 경로
      *
      * @return 서버 상태 정보
      */
@@ -32,6 +32,17 @@ public class HealthCheckController {
         response.put("version", "1.0.0");
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 헬스체크 엔드포인트 (API 경로용)
+     * GET /api/health
+     *
+     * @return 서버 상태 정보
+     */
+    @GetMapping("/api/health")
+    public ResponseEntity<Map<String, Object>> apiHealthCheck() {
+        return healthCheck();
     }
 
 }
