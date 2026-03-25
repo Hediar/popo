@@ -1,0 +1,69 @@
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: popo-db
+    env: docker
+    plan: free
+    region: singapore
+    ipAllowList: [] # Allow all IPs
+    databases:
+      - name: popo
+        user: popo_user
+    # pgvector extension은 수동으로 설치 필요
+
+  # Spring Boot Backend
+  - type: web
+    name: popo-backend
+    env: docker
+    region: singapore
+    plan: free
+    branch: main # 또는 master, chat 등 배포할 브ranch
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true # Git push 시 자동 배포
+    envVars:
+      # Database Connection (개별 설정 방식)
+      - key: DB_HOST
+        fromDatabase:
+          name: popo-db
+          property: host
+
+      - key: DB_PORT
+        fromDatabase:
+          name: popo-db
+          property: port
+
+      - key: DB_NAME
+        fromDatabase:
+          name: popo-db
+          property: database
+
+      - key: DB_USERNAME
+        fromDatabase:
+          name: popo-db
+          property: user
+
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: popo-db
+          property: password
+
+      # OpenAI API Key (Render Dashboard에서 설정 필요)
+      - key: OPENAI_API_KEY
+        sync: false # Render Dashboard에서 수동 설정
+
+      # CORS (프론트엔드 배포 후 추가)
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://your-frontend.onrender.com
+
+      # JPA Settings
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+
+      - key: SPRING_JPA_SHOW_SQL
+        value: false
+
+      # Logging
+      - key: LOGGING_LEVEL_ROOT
+        value: INFO
