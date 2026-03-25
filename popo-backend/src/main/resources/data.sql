@@ -1,3 +1,62 @@
+ -- pgvector 활성화
+  CREATE EXTENSION IF NOT EXISTS vector;
+
+  -- 테이블 생성
+  CREATE TABLE IF NOT EXISTS profile (
+      id BIGSERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      occupation VARCHAR(255),
+      experience VARCHAR(255),
+      current_company VARCHAR(255),
+      education TEXT,
+      introduction TEXT,
+      tech_stack JSONB,
+      interests TEXT,
+      email VARCHAR(255),
+      github_url VARCHAR(500),
+      blog_url VARCHAR(500),
+      certifications JSONB,
+      metadata JSONB,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  );
+
+  CREATE TABLE IF NOT EXISTS portfolio_data (
+      id BIGSERIAL PRIMARY KEY,
+      type VARCHAR(50) NOT NULL,
+      title VARCHAR(500) NOT NULL,
+      content TEXT,
+      metadata JSONB,
+      embedding vector(1536),
+      source VARCHAR(255),
+      priority INTEGER,
+      is_public BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_portfolio_data_type ON portfolio_data(type);
+  CREATE INDEX IF NOT EXISTS idx_portfolio_data_source ON portfolio_data(source);
+  CREATE INDEX IF NOT EXISTS idx_portfolio_data_is_public ON portfolio_data(is_public);
+
+  CREATE TABLE IF NOT EXISTS chat_sessions (
+      id BIGSERIAL PRIMARY KEY,
+      session_id VARCHAR(255) UNIQUE NOT NULL,
+      user_id VARCHAR(255),
+      client_ip VARCHAR(50),
+      messages JSONB,
+      status VARCHAR(50),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_chat_sessions_session_id ON chat_sessions(session_id);
+  CREATE INDEX IF NOT EXISTS idx_chat_sessions_created_at ON chat_sessions(created_at);
+
+  -- 확인
+  SELECT 'Tables created successfully!' as status;
+
 -- 프로필 샘플 데이터
 INSERT INTO profile (
     name,
@@ -20,11 +79,11 @@ INSERT INTO profile (
     '풀스택 개발자',
     '2년 4개월',
     '그렉터',
-    '한경대학교 컴퓨터공학과',
+    '한경대학교 컴퓨터공학과 (학점 3.6), 원광대학교 컴퓨터소프트웨어공학과 (학점 4.03)',
     '자동화와 구조 개선으로 운영 효율과 안정성을 높인 서비스 전주기 경험. 플랫폼 개발팀(60명 중 20명)에서 IoT 수자원/시설물 운영 웹 서비스(Aliot WaterGrid, DMS Portal 등)를 개발 및 운영하며 서비스 전주기를 경험했습니다. 모니터링 시스템을 구축해 수동 타입별 없이 오류를 확인할 수 있는 환경을 마련했고, 데이터 수집 → 가공 → 저장 전 과정을 관리하며 안정적인 데이터 플로우 운영에 기여했습니다.',
     '{
-        "expert": ["JavaScript", "TypeScript", "Node.js"],
-        "proficient": ["Spring Boot", "Next.js", "React", "Vue", "PostgreSQL", "Opensearch/Elasticsearch", "Linux"],
+        "expert": ["JavaScript", "Next.js","Node.js"],
+        "proficient": ["Spring Boot",  "TypeScript", "React", "Vue", "PostgreSQL", "Opensearch/Elasticsearch", "Linux"],
         "familiar": ["Java", "Redis", "Docker"]
     }'::jsonb,
     '데이터베이스, 인프라, 시스템 아키텍처',
@@ -45,17 +104,64 @@ INSERT INTO profile (
 INSERT INTO portfolio_data (type, title, content, metadata, source, priority, is_public, created_at, updated_at) VALUES
 (
     'project',
-    'popo-ai',
-    'AI 기반 포트폴리오 소개 서비스입니다. 방문자와 대화하며 포트폴리오를 소개합니다. Spring Boot, PostgreSQL, pgvector를 사용하여 벡터 검색 기반 RAG(Retrieval Augmented Generation) 패턴을 구현했습니다. 방문자 질문을 기반으로 포트폴리오 데이터를 검색하고, OpenAI API를 활용해 자연스러운 대화로 응답합니다.',
+    'POPO - AI 기반 포트폴리오 챗봇',
+    '이력서, 포트폴리오, 경력기술서를 기반으로 사용자의 질문에 답변하는 RAG 기반 AI 챗봇입니다. 정적인 포트폴리오의 한계를 극복하고, 사용자가 원하는 정보를 대화형으로 빠르게 제공합니다. Spring Boot와 PostgreSQL + pgvector를 활용한 벡터 검색으로 관련 정보만 추출하여 답변 품질과 비용 효율을 동시에 확보했습니다.',
     '{
-        "techStack": ["Java", "Spring Boot", "PostgreSQL", "Next.js", "pgvector", "OpenAI API", "Spring AI", "JPA", "Redis", "Bucket4j"],
+        "techStack": ["Spring Boot", "PostgreSQL", "pgvector", "OpenAI API", "Spring AI", "JPA", "Bucket4j", "Docker", "Next.js", "TypeScript", "Biome", "Render", "Cloudflare", "Vercel"],
         "role": "풀스택 개발",
-        "duration": "2026.03 - 진행중",
-        "background": "기존 정적 포트폴리오는 방문자가 원하는 정보를 찾기 어렵고, 제공자 입장에서도 모든 내용을 효과적으로 전달하기 어려웠습니다. AI를 활용해 방문자의 질문에 맞춰 포트폴리오를 동적으로 소개하는 시스템을 기획했습니다.",
-        "goals": ["방문자 질문 기반 포트폴리오 정보 제공", "RAG 패턴으로 정확한 정보 전달", "자연스러운 대화 경험 제공", "확장 가능한 벡터 검색 시스템 구축"],
-        "features": ["키워드 매칭 필터링 → 벡터 검색 2단계 검색 전략", "프로필 정보를 DB에 저장하고 AI 프롬프트에 활용", "대화 세션 관리 및 히스토리 저장 (JSONB)", "IP 기반 Rate Limiting (Bucket4j)", "Spring AI ChatClient 활용한 OpenAI 통합"],
-        "challenges": ["효율적인 검색을 위한 키워드 필터링 + 벡터 검색 조합", "한국어 불용어 처리 및 키워드 추출", "대화 히스토리 관리 전략 (캐싱 vs DB 저장)", "기술 스택 숙련도별 분류 및 관리"],
-        "achievements": ["키워드 매칭 필터링 구현 (성능 최적화)", "RAG 패턴 적용 (Profile + Portfolio Data + Conversation History)", "실시간 대화 시스템 구축", "JSONB 활용한 유연한 데이터 구조 설계", "IP 기반 요청 제한으로 서비스 안정성 확보"]
+        "duration": "2026.02 - 2026.03",
+        "overview": "이력서를 기반으로 사용자의 질문에 답변하는 RAG 기반 AI 챗봇",
+        "challenges": [
+            {
+                "problem": "정적인 포트폴리오의 한계",
+                "description": "기존 포트폴리오는 정보를 한 번에 나열하는 방식이라, 사용자가 원하는 내용을 빠르게 찾기 어렵습니다. 또한, 사용자별로 관심사가 다르기 때문에 정적인 구조만으로는 어필하기 어렵다고 생각했습니다.",
+                "consideration": "처음에는 단순히 포트폴리오 내용을 더 보기 좋게 배치하는 방향을 생각했지만, 정보량이 많아질수록 사용자가 직접 찾아야 한다는 문제는 그대로 남는다고 판단했습니다.",
+                "solution": "포트폴리오, 이력서, 경력기술서를 데이터화하고, 사용자의 질문에 맞는 내용을 찾아 답변하는 AI 기반 포트폴리오 챗봇을 만들었습니다."
+            },
+            {
+                "problem": "AI가 내 정보를 정확하게 답변하게 만들어야 함",
+                "description": "LLM은 제 포트폴리오를 학습한 모델이 아니기 때문에, 별도 처리 없이 질문만 전달하면 부정확한 답변을 할 가능성이 있었습니다.",
+                "consideration": "포트폴리오 전체 내용을 프롬프트에 매번 넣는 방식으로 해결하고자 하였으나, 정보가 많아질수록 토큰 비용이 커지고 관련 없는 정보까지 함께 들어가 답변 품질이 떨어질 수 있다고 생각했습니다.",
+                "solution": "질문을 임베딩으로 변환한 뒤, PostgreSQL + pgvector 환경에서 유사도 검색을 수행하고, 상위 결과만 구성해 LLM에 전달하는 RAG 패턴을 적용했습니다. 질문과 관련있는 데이터만 검색해 답변 생성에 활용하도록 설계했습니다."
+            },
+            {
+                "problem": "답변을 자연스럽고 일관성 있게 만들기",
+                "description": "초기 응답으로는 3인칭이나 형식적인 톤으로 출력되는 문제가 있었습니다. 정보만 전달하면 충분할 것이라 생각했지만, 같은 정보라도 어떤 말투와 시점으로 표현하느냐에 따라 인상이 크게 달라졌습니다.",
+                "consideration": "친절하고 일관성 있게 답변을 어떻게 만들어 내야할지 고민되었습니다.",
+                "solution": "시스템 프롬프트에 역할, 말투, 응답 규칙을 구조화하여 정의했습니다. 검색 결과, 프로필 정보는 일정한 템플릿으로 넣고, 답변은 1인칭 시점으로 존댓말을 사용하도록 프롬프트를 구성했습니다."
+            },
+            {
+                "problem": "성능과 비용 사이의 균형을 맞추는 문제",
+                "description": "LLM 기반 서비스는 사용하는 모델과 프롬프트 길이에 따라 비용 부담이 크게 달라졌습니다. 더 높은 성능의 모델을 적용하고 싶었지만, 실제 운영 가능성을 고려하면 비용을 무시할 수 없었습니다.",
+                "consideration": "성능이 좋은 모델을 사용하면 답변 품질은 높아지지만 비용이 급격히 증가하고, 많은 컨텍스트를 포함하면 정확도는 높아질 수 있어도 토큰 사용량과 응답 시간이 함께 늘어났습니다. 개인 프로젝트 특성상 클라우드 인프라 비용도 부담이 되었기 때문에, 가능한 한 무료 또는 저비용 서비스를 중심으로 운영 방식을 설계하고자 했습니다.",
+                "solution": "대화 모델로는 GPT-4o-mini를 선택하고, 최근 대화 5개만 유지하도록 제한했으며, 검색 결과 역시 상위 5개만 컨텍스트에 포함하도록 구성했습니다. 또한 전체 데이터를 매번 프롬프트에 넣지 않고, RAG 방식으로 필요한 정보만 추출해 전달함으로써 토큰 사용량을 줄였습니다. 배포는 프론트엔드에 Vercel, 백엔드에 Render를 적용해 비용을 최소화했으며, Cloudflare 스케줄링을 통해 저비용 환경에서도 안정적으로 서비스를 유지할 수 있도록 구성했습니다."
+            }
+        ],
+        "goals": [
+            "RAG 패턴 구현: PostgreSQL + pgvector로 벡터 데이터베이스 구축",
+            "AI 대화 시스템 구축: OpenAI Chat API를 통합하여 1인칭 시점의 자연스러운 응답 생성",
+            "Spring Boot 기반 RESTful API 개발",
+            "새로운 기술 스택 학습 및 적용: Spring AI framework, LLM 활용 및 프롬프트 엔지니어링, bucket4j(트래픽 제어)"
+        ],
+        "retrospective": {
+            "learnings": [
+                "사용자에게 중요한 것은 많은 정보를 보여주는 것이 아니라, 필요한 정보를 빠르게 전달하는 경험입니다.",
+                "AI 서비스의 품질은 모델보다도 검색 구조와 프롬프트 설계에 크게 좌우됩니다.",
+                "개인 프로젝트라도 비용과 배포 환경까지 고려해야 실제로 운영 가능한 서비스가 됩니다.",
+                "AI 서비스의 핵심은 단순히 LLM을 연결하는 것보다, 데이터를 어떻게 가공하고 검색 가능한 형태로 설계하느냐가 더 중요합니다.",
+                "실제로 포트폴리오, 이력서, 경력기술서를 답변에 활용할 수 있도록 정리하고 청크 단위로 구성하는 과정에서 예상보다 많은 시간과 노력이 필요했습니다.",
+                "임베딩 생성과 벡터 유사도 검색은 데이터가 늘어날수록 비용과 성능에 영향을 주기 때문에, 정확도 뿐만 아니라 운영 효율까지 함께 고려해야 했습니다.",
+                "데이터 전처리, 검색 구조, 응답 품질, 비용과 성능의 균형을 함께 설계하는 과정을 체감할 수 있었습니다."
+            ]
+        },
+        "achievements": [
+            "RAG 패턴 구현으로 질문과 관련있는 정보만 검색하여 답변 생성",
+            "시스템 프롬프트 구조화를 통한 1인칭 시점의 자연스러운 답변 구현",
+            "GPT-4o-mini와 컨텍스트 제한으로 비용 효율 확보",
+            "Vercel/Render/Cloudflare 조합으로 저비용 운영 환경 구축",
+            "Spring AI framework와 pgvector를 활용한 벡터 검색 시스템 구현",
+            "Bucket4j를 통한 트래픽 제어로 안정적인 서비스 운영"
+        ]
     }'::jsonb,
     'project-popo-ai',
     10,
@@ -65,7 +171,7 @@ INSERT INTO portfolio_data (type, title, content, metadata, source, priority, is
 ),
 (
     'project',
-    '불도적(BDZ) - 주차 플랫폼',
+    '불도저(BDZ) - 주차 플랫폼',
     '공영 + 유료 주차장 정보와 불법주정차 단속구역을 통합한 주차 앱 서비스입니다. Spring Boot 기반 백엔드 API 개발 및 ERD 설계를 담당했습니다. 시민에게는 공영+유료 주차장+단속 정보를 한 번에 보여주고 검색부터 결제·주차·알림까지 원스톱 제공하며, 주차장 관리자에게는 개인 소유 유료 주차장을 등록·홍보·운영·정산할 수 있는 채널을 제공합니다.',
     '{
         "techStack": ["Spring Boot", "PostgreSQL", "Redis", "Spring Security", "Docker", "JWT", "BCrypt"],
@@ -412,8 +518,114 @@ INSERT INTO portfolio_data (type, title, content, metadata, source, priority, is
     NOW()
 );
 
+-- 경력 데이터
+INSERT INTO portfolio_data (type, title, content, metadata, source, priority, is_public, created_at, updated_at) VALUES
+(
+    'career',
+    '그렉터 - 풀스택 개발자',
+    '기업부설연구소 연구원으로 재직하며 IoT 플랫폼 개발 및 운영 업무를 담당하고 있습니다. 수자원/시설물 관리 웹 서비스 개발, 데이터 파이프라인 구축, 로그 모니터링 시스템 개발 등 서비스 전주기를 경험하며 운영 효율과 안정성 개선에 기여했습니다.',
+    '{
+        "company": "그렉터",
+        "position": "풀스택 개발자",
+        "department": "기업부설연구소",
+        "role": "연구원",
+        "duration": "2023.11 ~ 재직중",
+        "totalPeriod": "2년 4개월",
+        "projects": [
+            {
+                "name": "위험시설물(FSMS) – 최소기능 개발 및 CORS 프록시 구축",
+                "period": "2025.12.01 - 2025.12.24",
+                "techStack": ["Nuxt.js (Vue.js)", "Node.js", "Express", "Bootstrap", "JavaScript"],
+                "achievements": [
+                    "단기 일정(약 2~3주) 내 핵심 화면 기능을 우선순위 중심으로 압축 개발하여 프로젝트 목표 달성",
+                    "협업팀과의 진행 현황 공유 체계를 정비해 요구사항 반영 속도 및 의사결정 효율 제고",
+                    "CORS 문제 해결을 위해 UI 서버에 프록시 API를 구축하고, 클라이언트–백엔드 간 통신을 Same-Origin 기반으로 안정화",
+                    "장치 ID 변경 비용이 큰 환경을 고려해 정책을 협의하고, 임시 표준안을 도출",
+                    "일정 압박 상황에서 기능 고도화보다 핵심 기능 완수가 우선될 수밖에 없는 한계를 확인하고, 우선순위 높은 것을 우선처리"
+                ]
+            },
+            {
+                "name": "FSMS dfm-evt 개발 / 유지보수",
+                "period": "2026.02 ~ 진행중",
+                "techStack": ["JavaScript", "OpenSearch/Elasticsearch", "NoSQL", "PostgreSQL", "MQTT", "Kubernetes", "systemd"],
+                "achievements": [
+                    "MQTT 기반 수신되는 데이터를 처리하여 이벤트 발생 로직 및 상태 등급 산정 로직 구현 및 운영",
+                    "데이터 가공 후 Opensearch 및 내부 저장소에 적재하고, oneM2M 스펙 기반 데이터 저장 규칙을 반영, 정합성 관리",
+                    "장치별 수신율 평가, 시간 단위 플랫폼 통계, 이상치/최빈값 등 배치 로직 운영 및 데이터 품질 관리",
+                    "Kubernetes/systemd 환경에서 로그 확인, 터널링, 포트 확인, 스냅샷, 배포 후 모니터링 등 운영 안정화"
+                ]
+            },
+            {
+                "name": "IoT 시계열 데이터 집계 / 적재 파이프라인 구축",
+                "period": "2026.02 ~ 2026.03",
+                "techStack": ["OpenSearch", "PostgreSQL", "Next.js", "Node.js"],
+                "achievements": [
+                    "OpenSearch에 저장된 10만건 이상의 데이터를 집계 및 가공하여 PostgreSQL에 적재하는 배치 파이프라인을 구축",
+                    "장치별 시초가/종가/최고가/최저가의 누적값을 생성하여 캔들차트 기반 조회 지원",
+                    "OpenSearch Node 연동 및 데이터 대상 데이터 이전 스크립트 설계/구현",
+                    "OpenSearch aggregation 쿼리(min, max, top_hits)를 활용해 장치별 시초가, 종가, 최고가, 최저가 산출 로직 구현",
+                    "PostgreSQL 누적 테이블 설계 및 전일 누적값과 당일 최종값을 반영한 적재 로직 구현",
+                    "Cron 기반 배치 작업 자동화 및 Queue Delay를 활용한 대용량 작업 분산 처리",
+                    "Next.js 시각화 화면과 연계할 수 있도록 운영용 데이터 조회 화면 제공"
+                ]
+            },
+            {
+                "name": "Aliot DMS Portal",
+                "period": "2025.07.08 - 2025.10.18",
+                "techStack": ["Next.js(App Router)", "React", "TypeScript", "Tailwind CSS", "shadcn/ui", "Node.js", "Express", "PostgreSQL", "Drizzle ORM", "React Hook Form", "Zod", "Zustand", "Biome"],
+                "achievements": [
+                    "IoT 센서 단말기(DMS)의 조회/등록/수정/관리 업무를 하나의 웹 시스템으로 통합하여 운영팀의 관리 동선을 단축",
+                    "운영팀 업무 프로세스를 기준으로 CRUD 및 관리 화면을 설계/구현하고, 반복적인 데이터 처리 업무를 효율화",
+                    "Excel 입출력 기능을 도입해 기존 현업 운영 방식과의 연계성을 높이고, 데이터 조회 및 정리 작업의 편의성을 개선",
+                    "React Hook Form과 Zod 기반 입력 검증을 적용해 오입력, 결측/중복 데이터 등 데이터 품질 이슈를 줄임"
+                ]
+            },
+            {
+                "name": "경량 로그 모니터링 시스템 구축",
+                "period": "2025.12 ~ 2026.01",
+                "techStack": ["React", "Express", "Cron", "OpenSearch", "SFTP"],
+                "achievements": [
+                    "SSH 접속 중심의 로그 확인 방식을 개선하기 위해 웹 기반 로그 검색 시스템 구축",
+                    "Cron이 ingest job을 실행하고, ingest job이 SFTP로 로그를 수집한 뒤 OpenSearch에 색인하는 구조 설계",
+                    "Express API를 통해 시간/키워드 기반 로그 조회 기능 구현",
+                    "테스트 서버에서 먼저 검증한 뒤 점진적으로 운영 확대할 수 있도록 구조 설계"
+                ]
+            }
+        ],
+        "keyAchievements": [
+            "서비스 전주기 경험: 요구사항 수집부터 설계, 개발, 배포, 운영까지 전 과정 참여",
+            "운영 효율화: 로그 모니터링 시스템 구축으로 수동 SSH 접속 없이 웹에서 로그 확인 가능",
+            "데이터 파이프라인 구축: IoT 데이터 수집 → 가공 → 저장 전 과정 설계 및 구현",
+            "운영 안정성 개선: Kubernetes/systemd 환경에서 모니터링 및 장애 대응",
+            "데이터 품질 관리: 수신율 평가, 이상치 탐지, 정합성 관리 등 데이터 품질 확보"
+        ]
+    }'::jsonb,
+    'career-grecter',
+    10,
+    true,
+    NOW(),
+    NOW()
+);
+
 -- 학력 데이터
 INSERT INTO portfolio_data (type, title, content, metadata, source, priority, is_public, created_at, updated_at) VALUES
+(
+    'education',
+    '원광대학교 컴퓨터소프트웨어공학과',
+    '원광대학교 컴퓨터소프트웨어공학과 재학. 프로그래밍 기초, 자료구조, 알고리즘 등의 컴퓨터 공학 기초를 학습했습니다.',
+    '{
+        "school": "원광대학교",
+        "major": "컴퓨터소프트웨어공학과",
+        "degree": "중퇴",
+        "duration": "2019.03 - 2021.02",
+        "gpa": "4.03/4.5"
+    }'::jsonb,
+    'education-wonkwang',
+    5,
+    true,
+    NOW(),
+    NOW()
+),
 (
     'education',
     '한경대학교 컴퓨터공학과',
@@ -422,7 +634,8 @@ INSERT INTO portfolio_data (type, title, content, metadata, source, priority, is
         "school": "한경대학교",
         "major": "컴퓨터공학과",
         "degree": "학사",
-        "duration": "2021.03 - 2023.02"
+        "duration": "2021.03 - 2023.02",
+        "gpa": "3.6/4.5"
     }'::jsonb,
     'education-hankyong',
     5,
