@@ -76,7 +76,6 @@ public interface PortfolioDataRepository extends JpaRepository<PortfolioData, Lo
 
     /**
      * 키워드 필터링 + 벡터 검색 조합
-     * TODO: pgvector extension 설치 후 활성화
      */
      @Query(value = """
          SELECT id, type, title, content, metadata, source, priority,
@@ -92,4 +91,25 @@ public interface PortfolioDataRepository extends JpaRepository<PortfolioData, Lo
          @Param("filteredIds") List<Long> filteredIds,
          @Param("limit") int limit
      );
+
+    /**
+     * type 필터 + 벡터 유사도 검색
+     */
+    @Query(value = """
+        SELECT id, type, title, content, metadata, source, priority,
+               1 - (embedding <=> CAST(:queryEmbedding AS vector)) AS similarity
+        FROM portfolio_data
+        WHERE is_public = true
+        AND type = :type
+        ORDER BY embedding <=> CAST(:queryEmbedding AS vector)
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<Object[]> findSimilarByType(@Param("queryEmbedding") float[] queryEmbedding,
+                                     @Param("type") String type,
+                                     @Param("limit") int limit);
+
+    /**
+     * 임베딩이 없는 데이터 조회
+     */
+    List<PortfolioData> findByEmbeddingIsNull();
 }

@@ -6,6 +6,9 @@ import com.example.popobackend.repository.PortfolioDataRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -13,6 +16,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class VectorSearchService {
+
+    private static final Logger log = LoggerFactory.getLogger(VectorSearchService.class);
 
     @Autowired
     private PortfolioDataRepository portfolioDataRepository;
@@ -50,29 +55,75 @@ public class VectorSearchService {
      * @param query 방문자 질문
      * @return 관련 포트폴리오 데이터 (유사도 순)
      */
+    private static final List<String> CAREER_KEYWORDS = Arrays.asList(
+        "회사", "경력", "직장", "재직", "근무", "업무", "그렉터", "연구원", "팀",
+        "어디서 일", "어디 다니", "무슨 일", "뭐하고 있", "어디 근무", "입사"
+    );
+
     public List<SearchResult> search(String query) {
+        log.info("[VectorSearch] 검색 시작 - query: \"{}\"", query);
+
+        // 회사/경력 관련 키워드 감지
+        String typeFilter = detectTypeFilter(query);
+        if (typeFilter != null) {
+            log.info("[VectorSearch] type 필터 감지: \"{}\"", typeFilter);
+        }
+
         try {
             // 1단계: 쿼리를 벡터로 변환
             float[] queryEmbedding = embeddingService.createEmbedding(query);
 
             if (queryEmbedding == null) {
-                // 임베딩 실패 시 키워드 검색으로 폴백
+                log.warn("[VectorSearch] 임베딩 실패 → 키워드 검색으로 폴백");
                 return keywordSearch(query);
             }
 
-            // 2단계: 벡터 유사도 검색 (상위 5개)
-            List<Object[]> results = portfolioDataRepository.findSimilar(queryEmbedding, 5);
+            log.info("[VectorSearch] 임베딩 성공 - 벡터 차원: {}", queryEmbedding.length);
+
+            // 2단계: 벡터 유사도 검색 (type 필터 적용)
+            List<Object[]> results;
+            if (typeFilter != null) {
+                results = portfolioDataRepository.findSimilarByType(queryEmbedding, typeFilter, 5);
+                log.info("[VectorSearch] type='{}' 필터 벡터 검색 결과: {}건", typeFilter, results.size());
+            } else {
+                results = portfolioDataRepository.findSimilar(queryEmbedding, 5);
+                log.info("[VectorSearch] 전체 벡터 검색 결과: {}건", results.size());
+            }
 
             // 3단계: SearchResult로 변환
-            return results.stream()
+            List<SearchResult> searchResults = results.stream()
                 .map(this::convertObjectArrayToSearchResult)
                 .collect(Collectors.toList());
 
+            for (int i = 0; i < searchResults.size(); i++) {
+                SearchResult sr = searchResults.get(i);
+                log.info("[VectorSearch] 결과[{}] 유사도: {}% | source: {} | content: {}",
+                    i, String.format("%.2f", sr.getSimilarity() * 100), sr.getSource(),
+                    sr.getContent().length() > 80 ? sr.getContent().substring(0, 80) + "..." : sr.getContent());
+            }
+
+            return searchResults;
+
         } catch (Exception e) {
-            // 벡터 검색 실패 시 키워드 검색으로 폴백
-            System.err.println("Vector search failed, falling back to keyword search: " + e.getMessage());
+            log.error("[VectorSearch] 벡터 검색 실패 → 키워드 검색으로 폴백: {}", e.getMessage());
             return keywordSearch(query);
         }
+    }
+
+    /**
+     * 질문에서 type 필터를 감지
+     * 회사/경력 관련 키워드 → "career"
+     */
+    private String detectTypeFilter(String query) {
+        if (query == null) return null;
+        String lower = query.toLowerCase();
+
+        for (String keyword : CAREER_KEYWORDS) {
+            if (lower.contains(keyword)) {
+                return "career";
+            }
+        }
+        return null;
     }
 
     /**
@@ -80,12 +131,18 @@ public class VectorSearchService {
      */
     private List<SearchResult> keywordSearch(String query) {
         List<String> keywords = extractKeywords(query);
+        log.info("[KeywordSearch] 추출된 키워드: {}", keywords);
 
         if (keywords.isEmpty()) {
+            log.info("[KeywordSearch] 키워드 없음 → 전체 검색 (searchAll)");
             return searchAll();
         }
 
         List<PortfolioData> filteredData = filterByKeywords(keywords);
+        log.info("[KeywordSearch] 키워드 필터링 결과: {}건", filteredData.size());
+        for (PortfolioData data : filteredData) {
+            log.info("[KeywordSearch] - [{}] {} (source: {})", data.getType(), data.getTitle(), data.getSource());
+        }
         return convertToSearchResults(filteredData);
     }
 
@@ -204,6 +261,7 @@ public class VectorSearchService {
      */
     public String buildContext(List<SearchResult> searchResults) {
         if (searchResults == null || searchResults.isEmpty()) {
+            log.info("[BuildContext] 검색 결과 없음 → 빈 컨텍스트 반환");
             return "검색된 관련 정보가 없습니다.";
         }
 
@@ -219,6 +277,7 @@ public class VectorSearchService {
             context.append("\n");
         }
 
+        log.info("[BuildContext] 최종 컨텍스트 길이: {}자, 참고자료 {}개", context.length(), searchResults.size());
         return context.toString();
     }
 }

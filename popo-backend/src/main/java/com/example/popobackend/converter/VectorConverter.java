@@ -2,57 +2,42 @@ package com.example.popobackend.converter;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
-import org.postgresql.util.PGobject;
 
-import java.sql.SQLException;
 import java.util.Arrays;
 
 /**
  * PostgreSQL vector 타입과 Java float[] 배열 간 변환
  * pgvector extension 사용
+ *
+ * String 기반 변환으로 Hibernate의 bytea 매핑 문제를 회피
  */
 @Converter
-public class VectorConverter implements AttributeConverter<float[], PGobject> {
+public class VectorConverter implements AttributeConverter<float[], String> {
 
     @Override
-    public PGobject convertToDatabaseColumn(float[] attribute) {
+    public String convertToDatabaseColumn(float[] attribute) {
         if (attribute == null) {
             return null;
         }
 
-        PGobject pgObject = new PGobject();
-        pgObject.setType("vector");
-
-        try {
-            // float[] → "[1.0,2.0,3.0]" 형식으로 변환
-            String vectorString = Arrays.toString(attribute)
-                    .replace(" ", ""); // 공백 제거
-            pgObject.setValue(vectorString);
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to convert float[] to PGobject", e);
-        }
-
-        return pgObject;
+        // float[] → "[1.0,2.0,3.0]" 형식으로 변환
+        return Arrays.toString(attribute).replace(" ", "");
     }
 
     @Override
-    public float[] convertToEntityAttribute(PGobject dbData) {
-        if (dbData == null || dbData.getValue() == null) {
+    public float[] convertToEntityAttribute(String dbData) {
+        if (dbData == null || dbData.isEmpty()) {
             return null;
         }
 
         try {
             // "[1.0,2.0,3.0]" → float[] 형식으로 변환
-            String vectorString = dbData.getValue();
-
-            // 대괄호 제거
-            vectorString = vectorString.replace("[", "").replace("]", "");
+            String vectorString = dbData.replace("[", "").replace("]", "");
 
             if (vectorString.isEmpty()) {
                 return new float[0];
             }
 
-            // 쉼표로 분리하여 float 배열로 변환
             String[] values = vectorString.split(",");
             float[] result = new float[values.length];
 
@@ -62,7 +47,7 @@ public class VectorConverter implements AttributeConverter<float[], PGobject> {
 
             return result;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to convert PGobject to float[]", e);
+            throw new RuntimeException("Failed to convert DB value to float[]: " + dbData.substring(0, Math.min(50, dbData.length())), e);
         }
     }
 }
