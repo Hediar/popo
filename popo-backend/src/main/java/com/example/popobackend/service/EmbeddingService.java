@@ -73,13 +73,14 @@ public class EmbeddingService {
 
     /**
      * 포트폴리오 데이터를 임베딩용 텍스트로 포맷팅
-     * 제목과 내용을 결합하여 더 나은 검색 결과를 위한 텍스트 생성
+     * title + content + metadata를 모두 포함하여 검색 정확도 향상
      *
      * @param title 제목
      * @param content 내용
-     * @return 임베딩용 텍스트
+     * @param metadata 메타데이터
+     * @return 임베딩용 텍스트 (title + content + metadata)
      */
-    public String formatForEmbedding(String title, String content) {
+    public String formatForEmbedding(String title, String content, String metadata) {
         StringBuilder text = new StringBuilder();
 
         if (title != null && !title.isEmpty()) {
@@ -88,11 +89,29 @@ public class EmbeddingService {
 
         if (content != null && !content.isEmpty()) {
             if (text.length() > 0) {
-                text.append(": ");
+                text.append(" ");
             }
             text.append(content);
         }
 
+        if (metadata != null && !metadata.isEmpty() && !metadata.equals("null")) {
+            if (text.length() > 0) {
+                text.append(" ");
+            }
+            text.append(metadata);
+        }
+
         return text.toString();
+    }
+
+    /**
+     * 포트폴리오 데이터를 임베딩용 텍스트로 포맷팅 (metadata 없는 버전)
+     *
+     * @param title 제목
+     * @param content 내용
+     * @return 임베딩용 텍스트
+     */
+    public String formatForEmbedding(String title, String content) {
+        return formatForEmbedding(title, content, null);
     }
 }
