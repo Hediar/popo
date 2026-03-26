@@ -3,20 +3,21 @@
 import React from "react";
 
 interface IntroShowcaseProps {
-	images?: string[]; // full url paths like /introduce_images/filename.png
+	images?: string[]; // full url paths like /public/... (also used for files)
 }
 
 export default function IntroShowcase({
-    images: imagePaths,
+	images: imagePaths,
 }: IntroShowcaseProps) {
 	// Fallback to an empty list if not provided
-	const images = (imagePaths || []).map((src) => ({
-		src: encodeURI(src),
-		alt: decodeURI(src.split("/").pop() || src),
-	}));
-    return (
-        <div className="p-6">
-            <div className="max-w-4xl mx-auto space-y-8">
+	const files = (imagePaths || []).map((src) => {
+		const encoded = encodeURI(src);
+		const name = decodeURI(src.split("/").pop() || src);
+		return { src: encoded, name };
+	});
+	return (
+		<div className="p-6">
+			<div className="max-w-4xl mx-auto space-y-8">
 				<section className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
 					<h1 className="text-xl font-bold mb-3">
 						안녕하세요! 저는 이세령입니다.
@@ -42,39 +43,33 @@ IoT 수자원 및 시설물 운영 웹 서비스를 개발하고 운영하며 �
 
 				<section>
 					<div className="flex items-center justify-between mb-3">
-						<h2 className="text-lg font-bold">설계 방식 / 결과물</h2>
-						<span className="text-[10px] text-slate-500 uppercase tracking-widest">
-							introduce_images
-						</span>
+						<h2 className="text-lg font-bold">자료 다운로드</h2>
+						<span className="text-[10px] text-slate-500 uppercase tracking-widest">attachments</span>
 					</div>
-					{images.length > 0 ? (
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-							{images.map((img) => (
-								<a
-									key={img.src}
-									href={img.src}
-									target="_blank"
-									rel="noreferrer"
-									className="group block overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
-									title={img.alt}
+					{files.length > 0 ? (
+						<ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+							{files.map((file) => (
+								<li
+									key={file.src}
+									className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex items-center justify-between gap-3"
+									title={file.name}
 								>
-									{/* eslint-disable-next-line @next/next/no-img-element */}
-									<img
-										src={img.src}
-										alt={img.alt}
-										className="aspect-video w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-										loading="lazy"
-									/>
-									<div className="p-2 text-xs text-slate-600 dark:text-slate-400 truncate">
-										{img.alt}
+									<div className="min-w-0">
+										<p className="text-xs text-slate-600 dark:text-slate-400 truncate">{file.name}</p>
 									</div>
-								</a>
+									<a
+										href={file.src}
+										download={file.name}
+										className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-primary text-white hover:bg-primary/90 transition-colors"
+									>
+										<span className="material-symbols-outlined text-[16px]">download</span>
+										다운로드
+									</a>
+								</li>
 							))}
-						</div>
+						</ul>
 					) : (
-						<div className="text-sm text-slate-500 dark:text-slate-400">
-							이미지를 찾을 수 없습니다. 폴더에 이미지를 추가해주세요.
-						</div>
+						<div className="text-sm text-slate-500 dark:text-slate-400" />
 					)}
 				</section>
 			</div>
