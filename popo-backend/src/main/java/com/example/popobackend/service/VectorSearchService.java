@@ -191,20 +191,38 @@ public class VectorSearchService {
     /**
      * Object[] (DB 결과)를 SearchResult로 변환
      * Object[]: [id, type, title, content, metadata, source, priority, similarity]
+     *
+     * title 기반으로 검색하고, content + metadata를 답변 생성에 사용
      */
     private SearchResult convertObjectArrayToSearchResult(Object[] row) {
         String title = row[2] != null ? row[2].toString() : "";
         String content = row[3] != null ? row[3].toString() : "";
+        String metadata = row[4] != null ? row[4].toString() : "";
         String source = row[5] != null ? row[5].toString() : row[1] + "-" + row[0];
         Double similarity = row[7] != null ? ((Number) row[7]).doubleValue() : 1.0;
 
-        // 제목과 내용 결합
-        String formattedContent = title;
-        if (content != null && !content.isEmpty()) {
-            formattedContent = formattedContent.isEmpty() ? content : formattedContent + ": " + content;
+        // title + content + metadata 모두 포함하여 답변 생성에 활용
+        StringBuilder formattedContent = new StringBuilder();
+
+        if (title != null && !title.isEmpty()) {
+            formattedContent.append(title);
         }
 
-        return new SearchResult(formattedContent, similarity, source);
+        if (content != null && !content.isEmpty()) {
+            if (formattedContent.length() > 0) {
+                formattedContent.append("\n");
+            }
+            formattedContent.append(content);
+        }
+
+        if (metadata != null && !metadata.isEmpty() && !metadata.equals("null")) {
+            if (formattedContent.length() > 0) {
+                formattedContent.append("\n");
+            }
+            formattedContent.append("추가 정보: ").append(metadata);
+        }
+
+        return new SearchResult(formattedContent.toString(), similarity, source);
     }
 
     /**
