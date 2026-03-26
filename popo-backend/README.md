@@ -77,46 +77,7 @@
 
 ## 🏗 시스템 아키텍처
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         Frontend                            │
-│                    (Next.js, Vercel)                        │
-└────────────────────┬────────────────────────────────────────┘
-                     │ HTTPS
-                     ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    Spring Boot Backend                      │
-│                       (Render)                              │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  ChatController                                       │  │
-│  │    ↓                                                  │  │
-│  │  ChatService (프롬프트 구조화 + 대화 관리)          │  │
-│  │    ↓                                                  │  │
-│  │  VectorSearchService                                  │  │
-│  │    - 키워드 감지 (career/project/profile)           │  │
-│  │    - 타입별 필터링                                    │  │
-│  │    ↓                                                  │  │
-│  │  EmbeddingService                                     │  │
-│  │    ↓                                                  │  │
-│  │  OpenAI Embeddings API (1536 dimensions)             │  │
-│  │    ↓                                                  │  │
-│  │  PostgreSQL + pgvector                                │  │
-│  │    - 코사인 유사도 검색 (>= 60%)                     │  │
-│  │    - 상위 5개 결과 반환                               │  │
-│  │    ↓                                                  │  │
-│  │  OpenAI Chat API (GPT-4o-mini)                       │  │
-│  │    - 검색된 컨텍스트 + 대화 이력                     │  │
-│  │    - 1인칭 답변 생성                                  │  │
-│  └──────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                     ↓
-┌─────────────────────────────────────────────────────────────┐
-│              PostgreSQL + pgvector (Render)                 │
-│  - profile: 프로필 정보                                     │
-│  - portfolio_data: 프로젝트/경력/학력 (벡터 검색용)        │
-│  - chat_sessions: 대화 세션 이력                            │
-└─────────────────────────────────────────────────────────────┘
-```
+
 
 ---
 
@@ -342,61 +303,6 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 `src/main/resources/data.sql` 참조하여 프로필 및 포트폴리오 데이터 입력
 
-자세한 배포 가이드: [DEPLOYMENT.md](./DEPLOYMENT.md)
-
----
-
-## 📁 프로젝트 구조
-
-```
-popo-backend/
-├── src/
-│   ├── main/
-│   │   ├── java/com/example/popobackend/
-│   │   │   ├── controller/
-│   │   │   │   ├── ChatController.java          # 채팅 API
-│   │   │   │   └── HealthCheckController.java   # Health Check
-│   │   │   ├── service/
-│   │   │   │   ├── ChatService.java             # 대화 관리
-│   │   │   │   ├── VectorSearchService.java     # 벡터 검색 (키워드 감지)
-│   │   │   │   ├── EmbeddingService.java        # OpenAI Embeddings
-│   │   │   │   └── OpenAIService.java           # OpenAI Chat API
-│   │   │   ├── repository/
-│   │   │   │   ├── PortfolioDataRepository.java # 벡터 검색 쿼리
-│   │   │   │   ├── ProfileRepository.java
-│   │   │   │   └── ChatSessionRepository.java
-│   │   │   ├── entity/
-│   │   │   │   ├── PortfolioData.java           # 포트폴리오 (벡터)
-│   │   │   │   ├── Profile.java                 # 프로필
-│   │   │   │   └── ChatSession.java             # 대화 세션
-│   │   │   ├── dto/
-│   │   │   │   ├── ChatRequest.java
-│   │   │   │   ├── ChatResponse.java
-│   │   │   │   └── SearchResult.java
-│   │   │   ├── config/
-│   │   │   │   ├── WebConfig.java               # CORS 설정
-│   │   │   │   ├── RateLimitFilter.java         # Rate Limiting
-│   │   │   │   └── OpenAIConfig.java
-│   │   │   ├── converter/
-│   │   │   │   └── VectorConverter.java         # pgvector 타입 변환
-│   │   │   └── exception/
-│   │   │       ├── OpenAIException.java         # 커스텀 예외
-│   │   │       ├── ErrorResponse.java
-│   │   │       └── GlobalExceptionHandler.java  # 전역 예외 처리
-│   │   └── resources/
-│   │       ├── application.properties
-│   │       └── data.sql                         # 초기 데이터
-│   └── test/
-├── Dockerfile
-├── docker-compose.yml
-├── render.yaml
-├── build.gradle
-├── .env.example
-├── .gitignore
-├── README.md
-├── DEPLOYMENT.md
-└── TECHNICAL_DOCUMENTATION.md
-```
 
 ---
 
@@ -546,15 +452,5 @@ public ResponseEntity<ErrorResponse> handleOpenAIException(OpenAIException e) {
 
 이 프로젝트는 개인 포트폴리오 용도로 제작되었습니다.
 
----
 
-## 👤 개발자
 
-**이세령**
-- Email: srlimvp@gmail.com
-- GitHub: [@Hediar](https://github.com/Hediar)
-- Blog: [velog.io/@hediar](https://velog.io/@hediar)
-
----
-
-**🤖 Built with [Claude Code](https://claude.com/claude-code)**
