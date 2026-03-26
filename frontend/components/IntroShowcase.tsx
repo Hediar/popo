@@ -11,9 +11,19 @@ export default function IntroShowcase({
 }: IntroShowcaseProps) {
 	// Fallback to an empty list if not provided
 	const files = (imagePaths || []).map((src) => {
-		const encoded = encodeURI(src);
-		const name = decodeURI(src.split("/").pop() || src);
-		return { src: encoded, name };
+		const lastSlash = src.lastIndexOf("/");
+		const prefix = lastSlash >= 0 ? src.slice(0, lastSlash + 1) : "";
+		const rawName = lastSlash >= 0 ? src.slice(lastSlash + 1) : src;
+		let displayName = rawName;
+		try {
+			displayName = decodeURIComponent(rawName);
+		} catch {
+			// keep rawName if not URI-encoded
+		}
+		// Encode only the filename to ensure special chars like '+' are safe
+		const encodedName = encodeURIComponent(displayName);
+		const href = `${prefix}${encodedName}`;
+		return { src: href, name: displayName };
 	});
 	return (
 		<div className="p-6">
