@@ -68,6 +68,7 @@ public interface PortfolioDataRepository extends JpaRepository<PortfolioData, Lo
                 1 - (embedding <=> CAST(:queryEmbedding AS vector)) AS similarity
          FROM portfolio_data
          WHERE is_public = true
+         AND 1 - (embedding <=> CAST(:queryEmbedding AS vector)) >= 0.6
          ORDER BY embedding <=> CAST(:queryEmbedding AS vector)
          LIMIT :limit
          """, nativeQuery = true)
@@ -83,6 +84,7 @@ public interface PortfolioDataRepository extends JpaRepository<PortfolioData, Lo
          FROM portfolio_data
          WHERE is_public = true
          AND id IN :filteredIds
+         AND 1 - (embedding <=> CAST(:queryEmbedding AS vector)) >= 0.6
          ORDER BY embedding <=> CAST(:queryEmbedding AS vector)
          LIMIT :limit
          """, nativeQuery = true)
@@ -101,6 +103,7 @@ public interface PortfolioDataRepository extends JpaRepository<PortfolioData, Lo
         FROM portfolio_data
         WHERE is_public = true
         AND type = :type
+        AND 1 - (embedding <=> CAST(:queryEmbedding AS vector)) >= 0.6
         ORDER BY embedding <=> CAST(:queryEmbedding AS vector)
         LIMIT :limit
         """, nativeQuery = true)

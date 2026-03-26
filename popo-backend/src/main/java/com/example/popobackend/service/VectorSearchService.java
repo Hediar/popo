@@ -55,9 +55,29 @@ public class VectorSearchService {
      * @param query 방문자 질문
      * @return 관련 포트폴리오 데이터 (유사도 순)
      */
+    /**
+     * 타입별 키워드 목록
+     */
     private static final List<String> CAREER_KEYWORDS = Arrays.asList(
         "회사", "경력", "직장", "재직", "근무", "업무", "그렉터", "연구원", "팀",
-        "어디서 일", "어디 다니", "무슨 일", "뭐하고 있", "어디 근무", "입사"
+        "어디서 일", "어디 다니", "무슨 일", "뭐하고 있", "어디 근무", "입사",
+        "경력사항", "이력", "직무", "직책", "소속", "부서"
+    );
+
+    private static final List<String> PROJECT_KEYWORDS = Arrays.asList(
+        "프로젝트", "포트폴리오", "개발", "구현", "만들", "제작", "설계",
+        "POPO", "불도저", "BDZ", "Aliot", "DMS", "FSMS", "Viewtrack",
+        "어떤 프로젝트", "무슨 프로젝트", "프로젝트 경험", "만든 것",
+        "개발한", "진행한", "참여한", "작업", "시스템", "플랫폼", "서비스"
+    );
+
+    private static final List<String> PROFILE_KEYWORDS = Arrays.asList(
+        "자기소개", "소개", "누구", "이름", "프로필", "본인",
+        "당신", "너", "어떤 사람", "어떤 개발자", "개발자",
+        "연락", "이메일", "깃허브", "GitHub", "블로그", "velog",
+        "기술스택", "스택", "기술", "사용", "다룰 수 있", "할 수 있",
+        "관심분야", "관심사", "좋아하", "전공", "학교", "학력", "졸업",
+        "자격증", "정보처리기사", "SQLD"
     );
 
     public List<SearchResult> search(String query) {
@@ -112,17 +132,39 @@ public class VectorSearchService {
 
     /**
      * 질문에서 type 필터를 감지
-     * 회사/경력 관련 키워드 → "career"
+     * - 회사/경력 관련 키워드 → "career"
+     * - 프로젝트 관련 키워드 → "project"
+     * - 프로필 관련 키워드 → "profile" (실제로는 Profile 테이블 조회)
      */
     private String detectTypeFilter(String query) {
         if (query == null) return null;
         String lower = query.toLowerCase();
+
+        // 우선순위: career > project > profile
+        // (career가 가장 구체적인 질문이므로 먼저 체크)
 
         for (String keyword : CAREER_KEYWORDS) {
             if (lower.contains(keyword)) {
                 return "career";
             }
         }
+
+        for (String keyword : PROJECT_KEYWORDS) {
+            if (lower.contains(keyword)) {
+                return "project";
+            }
+        }
+
+        // profile 키워드는 portfolio_data가 아닌 profile 테이블 조회 필요
+        // 현재는 null 반환하여 전체 검색 수행
+        // TODO: ProfileService와 연동하여 profile 데이터도 포함
+        for (String keyword : PROFILE_KEYWORDS) {
+            if (lower.contains(keyword)) {
+                // profile 타입은 별도 처리 필요 (현재는 전체 검색)
+                return null;
+            }
+        }
+
         return null;
     }
 
