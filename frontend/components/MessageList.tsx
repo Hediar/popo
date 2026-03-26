@@ -8,7 +8,7 @@ interface MessageListProps {
 
 export default function MessageList({ messages }: MessageListProps) {
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 max-w-4xl mx-auto">
       {messages.map((message) => {
         const isUser = message.role === 'user';
         const isError = !!message.isError;
