@@ -27,9 +27,9 @@ public interface PortfolioDataRepository extends JpaRepository<PortfolioData, Lo
         FROM portfolio_data p
         WHERE p.is_public = true
         AND (
-            LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
-            OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))
-            OR LOWER(CAST(p.metadata AS TEXT)) LIKE LOWER(CONCAT('%', :keyword, '%'))
+            LOWER(p.title) LIKE LOWER(CONCAT('%', CAST(:keyword AS TEXT), '%'))
+            OR LOWER(p.content) LIKE LOWER(CONCAT('%', CAST(:keyword AS TEXT), '%'))
+            OR LOWER(CAST(p.metadata AS TEXT)) LIKE LOWER(CONCAT('%', CAST(:keyword AS TEXT), '%'))
         )
         ORDER BY p.priority DESC, p.created_at DESC
         """, nativeQuery = true)
@@ -48,9 +48,9 @@ public interface PortfolioDataRepository extends JpaRepository<PortfolioData, Lo
         CROSS JOIN LATERAL unnest(CAST(:keywords AS TEXT[])) AS k(keyword)
         WHERE p.is_public = true
         AND (
-            LOWER(p.title) LIKE LOWER(CONCAT('%', k.keyword, '%'))
-            OR LOWER(p.content) LIKE LOWER(CONCAT('%', k.keyword, '%'))
-            OR LOWER(CAST(p.metadata AS TEXT)) LIKE LOWER(CONCAT('%', k.keyword, '%'))
+            LOWER(p.title) LIKE LOWER(CONCAT('%', CAST(k.keyword AS TEXT), '%'))
+            OR LOWER(p.content) LIKE LOWER(CONCAT('%', CAST(k.keyword AS TEXT), '%'))
+            OR LOWER(CAST(p.metadata AS TEXT)) LIKE LOWER(CONCAT('%', CAST(k.keyword AS TEXT), '%'))
         )
         ORDER BY p.priority DESC, p.created_at DESC
         """, nativeQuery = true)
@@ -103,7 +103,7 @@ public interface PortfolioDataRepository extends JpaRepository<PortfolioData, Lo
                1 - (embedding <=> CAST(:queryEmbedding AS vector)) AS similarity
         FROM portfolio_data
         WHERE is_public = true
-        AND type = :type
+        AND type = CAST(:type AS TEXT)
         AND 1 - (embedding <=> CAST(:queryEmbedding AS vector)) >= 0.6
         ORDER BY embedding <=> CAST(:queryEmbedding AS vector)
         LIMIT :limit
