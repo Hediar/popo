@@ -22,16 +22,17 @@ public interface PortfolioDataRepository extends JpaRepository<PortfolioData, Lo
      * @param keyword 검색 키워드
      * @return 키워드가 포함된 포트폴리오 데이터
      */
-    @Query("""
-        SELECT p FROM PortfolioData p
-        WHERE p.isPublic = true
+    @Query(value = """
+        SELECT p.*
+        FROM portfolio_data p
+        WHERE p.is_public = true
         AND (
             LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
             OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))
-            OR LOWER(p.metadata) LIKE LOWER(CONCAT('%', :keyword, '%'))
+            OR LOWER(CAST(p.metadata AS TEXT)) LIKE LOWER(CONCAT('%', :keyword, '%'))
         )
-        ORDER BY p.priority DESC, p.createdAt DESC
-        """)
+        ORDER BY p.priority DESC, p.created_at DESC
+        """, nativeQuery = true)
     List<PortfolioData> findByKeyword(@Param("keyword") String keyword);
 
     /**
