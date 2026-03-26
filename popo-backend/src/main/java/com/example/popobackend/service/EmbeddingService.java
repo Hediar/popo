@@ -73,24 +73,45 @@ public class EmbeddingService {
 
     /**
      * 포트폴리오 데이터를 임베딩용 텍스트로 포맷팅
-     * title만 임베딩하여 더 정확한 키워드 매칭
-     * content와 metadata는 답변 생성 시 사용
+     * title + content + metadata를 모두 포함하여 검색 정확도 향상
      *
      * @param title 제목
-     * @param content 내용 (임베딩에는 사용하지 않음)
-     * @return 임베딩용 텍스트 (title만)
+     * @param content 내용
+     * @param metadata 메타데이터
+     * @return 임베딩용 텍스트 (title + content + metadata)
+     */
+    public String formatForEmbedding(String title, String content, String metadata) {
+        StringBuilder text = new StringBuilder();
+
+        if (title != null && !title.isEmpty()) {
+            text.append(title);
+        }
+
+        if (content != null && !content.isEmpty()) {
+            if (text.length() > 0) {
+                text.append(" ");
+            }
+            text.append(content);
+        }
+
+        if (metadata != null && !metadata.isEmpty() && !metadata.equals("null")) {
+            if (text.length() > 0) {
+                text.append(" ");
+            }
+            text.append(metadata);
+        }
+
+        return text.toString();
+    }
+
+    /**
+     * 포트폴리오 데이터를 임베딩용 텍스트로 포맷팅 (metadata 없는 버전)
+     *
+     * @param title 제목
+     * @param content 내용
+     * @return 임베딩용 텍스트
      */
     public String formatForEmbedding(String title, String content) {
-        // title만 임베딩 생성 (더 정확한 키워드 매칭)
-        if (title != null && !title.isEmpty()) {
-            return title;
-        }
-
-        // title이 없는 경우에만 content 사용
-        if (content != null && !content.isEmpty()) {
-            return content;
-        }
-
-        return "";
+        return formatForEmbedding(title, content, null);
     }
 }

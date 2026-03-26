@@ -90,12 +90,16 @@ public class VectorSearchService {
         }
 
         try {
+            // 0단계: title 키워드 매칭 우선 검색
+            List<SearchResult> keywordMatchResults = searchByTitleKeyword(query, typeFilter);
+            log.info("[VectorSearch] title 키워드 매칭 결과: {}건", keywordMatchResults.size());
+
             // 1단계: 쿼리를 벡터로 변환
             float[] queryEmbedding = embeddingService.createEmbedding(query);
 
             if (queryEmbedding == null) {
-                log.warn("[VectorSearch] 임베딩 실패 → 키워드 검색으로 폴백");
-                return keywordSearch(query);
+                log.warn("[VectorSearch] 임베딩 실패 → 키워드 검색 결과 반환");
+                return keywordMatchResults.isEmpty() ? keywordSearch(query) : keywordMatchResults;
             }
 
             log.info("[VectorSearch] 임베딩 성공 - 벡터 차원: {}", queryEmbedding.length);
@@ -111,23 +115,90 @@ public class VectorSearchService {
             }
 
             // 3단계: SearchResult로 변환
-            List<SearchResult> searchResults = results.stream()
+            List<SearchResult> vectorSearchResults = results.stream()
                 .map(this::convertObjectArrayToSearchResult)
                 .collect(Collectors.toList());
 
-            for (int i = 0; i < searchResults.size(); i++) {
-                SearchResult sr = searchResults.get(i);
-                log.info("[VectorSearch] 결과[{}] 유사도: {}% | source: {} | content: {}",
+            // 4단계: title 키워드 매칭 결과와 벡터 검색 결과 합치기 (중복 제거)
+            List<SearchResult> combinedResults = new ArrayList<>(keywordMatchResults);
+            for (SearchResult vectorResult : vectorSearchResults) {
+                boolean isDuplicate = combinedResults.stream()
+                    .anyMatch(existing -> existing.getSource().equals(vectorResult.getSource()));
+                if (!isDuplicate) {
+                    combinedResults.add(vectorResult);
+                }
+            }
+
+            // 최대 5개로 제한
+            List<SearchResult> finalResults = combinedResults.stream()
+                .limit(5)
+                .collect(Collectors.toList());
+
+            for (int i = 0; i < finalResults.size(); i++) {
+                SearchResult sr = finalResults.get(i);
+                log.info("[VectorSearch] 최종결과[{}] 유사도: {}% | source: {} | content: {}",
                     i, String.format("%.2f", sr.getSimilarity() * 100), sr.getSource(),
                     sr.getContent().length() > 80 ? sr.getContent().substring(0, 80) + "..." : sr.getContent());
             }
 
-            return searchResults;
+            return finalResults;
 
         } catch (Exception e) {
             log.error("[VectorSearch] 벡터 검색 실패 → 키워드 검색으로 폴백: {}", e.getMessage());
             return keywordSearch(query);
         }
+    }
+
+    /**
+     * title에서 키워드 직접 매칭
+     * query에서 의미있는 키워드를 추출하여 title에 포함된 항목을 찾음
+     */
+    private List<SearchResult> searchByTitleKeyword(String query, String typeFilter) {
+        List<String> keywords = extractKeywords(query);
+        if (keywords.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        log.info("[TitleKeywordSearch] 추출된 키워드: {}", keywords);
+
+        List<PortfolioData> matchedData = new ArrayList<>();
+        for (String keyword : keywords) {
+            List<PortfolioData> matches;
+            if (typeFilter != null) {
+                // type 필터가 있으면 해당 type만 검색
+                matches = portfolioDataRepository.findByTypeAndIsPublicTrue(typeFilter).stream()
+                    .filter(data -> data.getTitle() != null &&
+                            data.getTitle().toLowerCase().contains(keyword.toLowerCase()))
+                    .collect(Collectors.toList());
+            } else {
+                // 전체 검색
+                matches = portfolioDataRepository.findByKeyword(keyword).stream()
+                    .filter(data -> data.getTitle() != null &&
+                            data.getTitle().toLowerCase().contains(keyword.toLowerCase()))
+                    .collect(Collectors.toList());
+            }
+
+            for (PortfolioData data : matches) {
+                if (!matchedData.contains(data)) {
+                    matchedData.add(data);
+                    log.info("[TitleKeywordSearch] 매칭: keyword='{}' → title='{}'", keyword, data.getTitle());
+                }
+            }
+        }
+
+        // 우선순위 높은 순으로 정렬하고 SearchResult로 변환
+        return matchedData.stream()
+            .sorted((a, b) -> Integer.compare(
+                b.getPriority() != null ? b.getPriority() : 0,
+                a.getPriority() != null ? a.getPriority() : 0
+            ))
+            .limit(3)  // title 매칭은 최대 3개까지
+            .map(data -> new SearchResult(
+                formatContent(data),
+                1.0,  // title 직접 매칭은 유사도 100%
+                data.getSource() != null ? data.getSource() : data.getType() + "-" + data.getId()
+            ))
+            .collect(Collectors.toList());
     }
 
     /**
