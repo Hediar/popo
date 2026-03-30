@@ -7,7 +7,7 @@ import MessageList from "./MessageList";
 import IntroShowcase from "./IntroShowcase";
 
 interface ChatInterfaceProps {
-    introImages?: string[];
+	introImages?: string[];
 }
 
 export default function ChatInterface({ introImages }: ChatInterfaceProps) {
@@ -16,6 +16,13 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 	const [isLoading, setIsLoading] = useState(false);
 	const eventSourceRef = useRef<EventSource | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const suggestedQuestions: string[] = [
+		"어떤 프로젝트들을 경험했나요?",
+		"주요 기술 스택을 알려줘",
+		"경력 요약을 간단히 말해줘",
+		"최근에 해결한 기술적 문제는?",
+		"강점이 무엇인가요?",
+	];
 
 	// 기본값을 POST로 사용하고, 명시적으로 true일 때만 스트리밍 사용
 	const useStream = process.env.NEXT_PUBLIC_CHAT_USE_STREAM === "true";
@@ -25,15 +32,13 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	});
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-
-		if (!input.trim() || isLoading) return;
+	const sendText = async (text: string) => {
+		if (!text.trim() || isLoading) return;
 
 		const userMessage: ChatMessage = {
 			id: Date.now().toString(),
 			role: "user",
-			content: input.trim(),
+			content: text.trim(),
 			timestamp: new Date(),
 		};
 
@@ -130,6 +135,12 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 		}
 	};
 
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!input.trim() || isLoading) return;
+		await sendText(input.trim());
+	};
+
 	// 컴포넌트 언마운트 시 EventSource 정리
 	useEffect(() => {
 		return () => {
@@ -170,6 +181,29 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 				{/* Input Area */}
 				<div className="p-6 border-t border-slate-200 dark:border-slate-800 flex-shrink-0">
 					<div className="max-w-4xl mx-auto relative">
+						{/* Suggested questions always visible above the chat bar */}
+						<div className="mb-3">
+							<div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl p-3">
+								<div className="flex items-center justify-between mb-2">
+									<h3 className="text-xs font-bold">자주 묻는 질문</h3>
+									<span className="text-[10px] text-slate-500 uppercase tracking-widest">
+										suggestions
+									</span>
+								</div>
+								<div className="flex flex-wrap gap-2">
+									{suggestedQuestions.map((q) => (
+										<button
+											key={q}
+											disabled={isLoading}
+											onClick={() => sendText(q)}
+											className="px-3 py-1.5 rounded-full text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+										>
+											{q}
+										</button>
+									))}
+								</div>
+							</div>
+						</div>
 						<form onSubmit={handleSubmit}>
 							<div className="flex items-center gap-2 p-2 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
 								<textarea
