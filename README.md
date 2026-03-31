@@ -7,7 +7,7 @@
 ## 소개
 
 이력서에 대한 질문에 자동으로 답변하는 AI 챗봇입니다.
-RAG(Retrieval-Augmented Generation) 패턴을 사용하여 정확한 답변을 제공합니다.
+RAG(Retrieval-Augmented Generation) 패턴을 사용하여 답변을 제공합니다.
 
 ## 기술 스택
 
