@@ -64,13 +64,13 @@ export function createChatStream(
 }
 
 // 채팅 메시지 전송 (POST 기반)
-export async function sendChatMessage(message: string): Promise<ChatAPIResponse> {
+export async function sendChatMessage(message: string, sessionId?: string | null): Promise<ChatAPIResponse> {
   const response = await fetch(`${API_URL}/api/chat/message`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, sessionId: sessionId || null }),
   });
 
   // 정상 응답

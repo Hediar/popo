@@ -14,6 +14,7 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [input, setInput] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
+	const [sessionId, setSessionId] = useState<string | null>(null);
 	const eventSourceRef = useRef<EventSource | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const suggestedQuestions: string[] = [
@@ -80,7 +81,8 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 					eventSourceRef.current?.close();
 					eventSourceRef.current = null;
 					try {
-						const res = await sendChatMessage(userMessage.content);
+						const res = await sendChatMessage(userMessage.content, sessionId);
+						if (res.sessionId) setSessionId(res.sessionId);
 						setMessages((prev) =>
 							prev.map((msg) =>
 								msg.id === assistantMessageId
@@ -108,7 +110,8 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 		} else {
 			// POST 기반 채팅 요청
 			try {
-				const res = await sendChatMessage(userMessage.content);
+				const res = await sendChatMessage(userMessage.content, sessionId);
+				if (res.sessionId) setSessionId(res.sessionId);
 				setMessages((prev) =>
 					prev.map((msg) =>
 						msg.id === assistantMessageId
