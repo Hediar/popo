@@ -7,11 +7,16 @@ import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class OpenAIService {
+
+    private static final Logger log = LoggerFactory.getLogger(OpenAIService.class);
 
     @Autowired
     private ChatClient.Builder chatClientBuilder;
@@ -100,14 +105,19 @@ public class OpenAIService {
             prompt.append(context).append("\n\n");
         }
 
-        // 3. 대화 내역 (최근 5개만)
+        // 3. 이전 대화 내역 (최근 100개까지, 현재 질문은 포함하지 않음)
         if (conversationHistory != null && !conversationHistory.isEmpty()) {
+            int start = Math.max(0, conversationHistory.size() - 100);
+            int count = conversationHistory.size() - start;
+            log.info("[RAGPrompt] 이전 대화 {}건 포함 (전체 {}건 중 index {} ~ {})",
+                count, conversationHistory.size(), start, conversationHistory.size() - 1);
             prompt.append("=== 이전 대화 ===\n");
-            int start = Math.max(0, conversationHistory.size() - 5);
             for (int i = start; i < conversationHistory.size(); i++) {
                 prompt.append(conversationHistory.get(i)).append("\n");
             }
             prompt.append("\n");
+        } else {
+            log.info("[RAGPrompt] 이전 대화 없음 (첫 질문)");
         }
 
         // 4. 현재 질문

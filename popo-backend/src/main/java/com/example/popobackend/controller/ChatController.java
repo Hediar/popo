@@ -10,11 +10,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/chat")
 public class ChatController {
+
+    private static final Logger log = LoggerFactory.getLogger(ChatController.class);
 
     @Autowired
     private ChatService chatService;
@@ -35,12 +40,23 @@ public class ChatController {
         // 클라이언트 IP 추출
         String clientIp = NetworkUtils.getClientIp(httpRequest);
 
+        System.out.println("========== [Chat] REQUEST PAYLOAD ==========");
+        System.out.println("sessionId: '" + request.getSessionId() + "'");
+        System.out.println("sessionId == null: " + (request.getSessionId() == null));
+        System.out.println("message: '" + request.getMessage() + "'");
+        System.out.println("clientIp: " + clientIp);
+        System.out.println("=============================================");
+
         // 메시지 처리 (sessionId와 AI 응답 반환)
         String[] result = chatService.processMessage(
                 request.getSessionId(),
                 request.getMessage(),
                 clientIp
         );
+
+        log.info("[Chat] 응답 완료 - 요청 sessionId: '{}' → 응답 sessionId: '{}' (동일={})",
+            request.getSessionId(), result[0],
+            result[0].equals(String.valueOf(request.getSessionId())));
 
         // 응답 생성
         ChatResponse response = new ChatResponse(
