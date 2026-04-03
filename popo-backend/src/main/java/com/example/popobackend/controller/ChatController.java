@@ -67,30 +67,5 @@ public class ChatController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * 세션의 대화 내역 조회
-     * GET /api/chat/session/{sessionId}/messages
-     *
-     * @param sessionId 세션 ID
-     * @return 대화 내역 목록
-     */
-    @GetMapping("/session/{sessionId}/messages")
-    public ResponseEntity<List<MessageDto>> getSessionMessages(@PathVariable String sessionId) {
-        List<MessageDto> messages = chatService.getSessionMessages(sessionId);
-        return ResponseEntity.ok(messages);
-    }
-
-    /**
-     * 세션 종료
-     * POST /api/chat/session/{sessionId}/close
-     *
-     * @param sessionId 세션 ID
-     * @return 성공 응답
-     */
-    @PostMapping("/session/{sessionId}/close")
-    public ResponseEntity<Void> closeSession(@PathVariable String sessionId) {
-        chatService.closeSession(sessionId);
-        return ResponseEntity.ok().build();
-    }
 }
 

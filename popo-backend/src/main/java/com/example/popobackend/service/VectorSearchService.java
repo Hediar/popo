@@ -9,9 +9,13 @@ import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -71,6 +75,10 @@ public class VectorSearchService {
         "개발한", "진행한", "참여한", "작업", "시스템", "플랫폼", "서비스"
     );
 
+    private static final List<String> BROAD_QUERY_KEYWORDS = Arrays.asList(
+        "전부", "모두", "모든", "다 알려", "전체", "목록", "리스트", "뭐가 있", "뭐 했", "어떤 것들", "몇 개"
+    );
+
     private static final List<String> PROFILE_KEYWORDS = Arrays.asList(
         "자기소개", "소개", "누구", "이름", "프로필", "본인",
         "당신", "너", "어떤 사람", "어떤 개발자", "개발자",
@@ -83,15 +91,23 @@ public class VectorSearchService {
     public List<SearchResult> search(String query) {
         log.info("[VectorSearch] 검색 시작 - query: \"{}\"", query);
 
+        boolean broadQuery = isBroadQuery(query);
+        if (broadQuery) {
+            log.info("[VectorSearch] 포괄적 질문 감지");
+        }
+
         // 회사/경력 관련 키워드 감지
         String typeFilter = detectTypeFilter(query);
         if (typeFilter != null) {
             log.info("[VectorSearch] type 필터 감지: \"{}\"", typeFilter);
         }
 
+        int vectorLimit = broadQuery ? 15 : 5;
+        int finalLimit = broadQuery ? 10 : 7;
+
         try {
             // 0단계: title 키워드 매칭 우선 검색
-            List<SearchResult> keywordMatchResults = searchByTitleKeyword(query, typeFilter);
+            List<SearchResult> keywordMatchResults = searchByTitleKeyword(query, typeFilter, broadQuery);
             log.info("[VectorSearch] title 키워드 매칭 결과: {}건", keywordMatchResults.size());
 
             // 1단계: 쿼리를 벡터로 변환
@@ -107,10 +123,10 @@ public class VectorSearchService {
             // 2단계: 벡터 유사도 검색 (type 필터 적용)
             List<Object[]> results;
             if (typeFilter != null) {
-                results = portfolioDataRepository.findSimilarByType(queryEmbedding, typeFilter, 5);
+                results = portfolioDataRepository.findSimilarByType(queryEmbedding, typeFilter, vectorLimit);
                 log.info("[VectorSearch] type='{}' 필터 벡터 검색 결과: {}건", typeFilter, results.size());
             } else {
-                results = portfolioDataRepository.findSimilar(queryEmbedding, 5);
+                results = portfolioDataRepository.findSimilar(queryEmbedding, vectorLimit);
                 log.info("[VectorSearch] 전체 벡터 검색 결과: {}건", results.size());
             }
 
@@ -118,6 +134,33 @@ public class VectorSearchService {
             List<SearchResult> vectorSearchResults = results.stream()
                 .map(this::convertObjectArrayToSearchResult)
                 .collect(Collectors.toList());
+
+            // 3.5단계: type 필터가 있고 벡터 검색 결과가 적으면, 해당 타입 전체 보충
+            if (typeFilter != null && vectorSearchResults.size() < 3) {
+                log.info("[VectorSearch] 타입 보충 - type='{}' 전체 데이터 추가", typeFilter);
+                List<PortfolioData> allOfType = portfolioDataRepository.findByTypeAndIsPublicTrue(typeFilter);
+                for (PortfolioData data : allOfType) {
+                    String source = data.getSource() != null ? data.getSource() : data.getType() + "-" + data.getId();
+                    boolean alreadyExists = vectorSearchResults.stream()
+                        .anyMatch(sr -> sr.getSource().equals(source));
+                    if (!alreadyExists) {
+                        vectorSearchResults.add(new SearchResult(formatContent(data), 0.5, source));
+                    }
+                }
+            }
+
+            // 3.6단계: career 필터일 때 experience도 함께 가져오기 (또는 그 반대)
+            if ("career".equals(typeFilter)) {
+                List<PortfolioData> experienceData = portfolioDataRepository.findByTypeAndIsPublicTrue("experience");
+                for (PortfolioData data : experienceData) {
+                    String source = data.getSource() != null ? data.getSource() : data.getType() + "-" + data.getId();
+                    boolean alreadyExists = vectorSearchResults.stream()
+                        .anyMatch(sr -> sr.getSource().equals(source));
+                    if (!alreadyExists) {
+                        vectorSearchResults.add(new SearchResult(formatContent(data), 0.5, source));
+                    }
+                }
+            }
 
             // 4단계: title 키워드 매칭 결과와 벡터 검색 결과 합치기 (중복 제거)
             List<SearchResult> combinedResults = new ArrayList<>(keywordMatchResults);
@@ -129,9 +172,9 @@ public class VectorSearchService {
                 }
             }
 
-            // 최대 5개로 제한
+            // 동적 제한
             List<SearchResult> finalResults = combinedResults.stream()
-                .limit(5)
+                .limit(finalLimit)
                 .collect(Collectors.toList());
 
             for (int i = 0; i < finalResults.size(); i++) {
@@ -153,7 +196,13 @@ public class VectorSearchService {
      * title에서 키워드 직접 매칭
      * query에서 의미있는 키워드를 추출하여 title에 포함된 항목을 찾음
      */
-    private List<SearchResult> searchByTitleKeyword(String query, String typeFilter) {
+    private boolean isBroadQuery(String query) {
+        if (query == null) return false;
+        String lower = query.toLowerCase();
+        return BROAD_QUERY_KEYWORDS.stream().anyMatch(lower::contains);
+    }
+
+    private List<SearchResult> searchByTitleKeyword(String query, String typeFilter, boolean broadQuery) {
         List<String> keywords = extractKeywords(query);
         if (keywords.isEmpty()) {
             return new ArrayList<>();
@@ -165,13 +214,11 @@ public class VectorSearchService {
         for (String keyword : keywords) {
             List<PortfolioData> matches;
             if (typeFilter != null) {
-                // type 필터가 있으면 해당 type만 검색
                 matches = portfolioDataRepository.findByTypeAndIsPublicTrue(typeFilter).stream()
                     .filter(data -> data.getTitle() != null &&
                             data.getTitle().toLowerCase().contains(keyword.toLowerCase()))
                     .collect(Collectors.toList());
             } else {
-                // 전체 검색
                 matches = portfolioDataRepository.findByKeyword(keyword).stream()
                     .filter(data -> data.getTitle() != null &&
                             data.getTitle().toLowerCase().contains(keyword.toLowerCase()))
@@ -186,16 +233,16 @@ public class VectorSearchService {
             }
         }
 
-        // 우선순위 높은 순으로 정렬하고 SearchResult로 변환
+        int titleLimit = broadQuery ? 10 : 3;
         return matchedData.stream()
             .sorted((a, b) -> Integer.compare(
                 b.getPriority() != null ? b.getPriority() : 0,
                 a.getPriority() != null ? a.getPriority() : 0
             ))
-            .limit(3)  // title 매칭은 최대 3개까지
+            .limit(titleLimit)
             .map(data -> new SearchResult(
                 formatContent(data),
-                1.0,  // title 직접 매칭은 유사도 100%
+                1.0,
                 data.getSource() != null ? data.getSource() : data.getType() + "-" + data.getId()
             ))
             .collect(Collectors.toList());
@@ -272,25 +319,20 @@ public class VectorSearchService {
         String source = row[5] != null ? row[5].toString() : row[1] + "-" + row[0];
         Double similarity = row[7] != null ? ((Number) row[7]).doubleValue() : 1.0;
 
-        // title + content + metadata 모두 포함하여 답변 생성에 활용
+        String type = row[1] != null ? row[1].toString() : "";
         StringBuilder formattedContent = new StringBuilder();
 
         if (title != null && !title.isEmpty()) {
-            formattedContent.append(title);
+            formattedContent.append("[").append(type).append("] ").append(title);
         }
 
         if (content != null && !content.isEmpty()) {
-            if (formattedContent.length() > 0) {
-                formattedContent.append("\n");
-            }
-            formattedContent.append(content);
+            formattedContent.append("\n").append(content);
         }
 
-        if (metadata != null && !metadata.isEmpty() && !metadata.equals("null")) {
-            if (formattedContent.length() > 0) {
-                formattedContent.append("\n");
-            }
-            formattedContent.append("추가 정보: ").append(metadata);
+        String parsedMeta = formatMetadata(metadata);
+        if (!parsedMeta.isEmpty()) {
+            formattedContent.append("\n").append(parsedMeta);
         }
 
         return new SearchResult(formattedContent.toString(), similarity, source);
@@ -361,26 +403,73 @@ public class VectorSearchService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 포트폴리오 데이터를 포맷팅
-     */
     private String formatContent(PortfolioData data) {
         StringBuilder content = new StringBuilder();
 
-        // 제목
         if (data.getTitle() != null && !data.getTitle().isEmpty()) {
-            content.append(data.getTitle());
+            content.append("[").append(data.getType()).append("] ").append(data.getTitle());
         }
 
-        // 내용
         if (data.getContent() != null && !data.getContent().isEmpty()) {
-            if (content.length() > 0) {
-                content.append(": ");
-            }
-            content.append(data.getContent());
+            content.append("\n").append(data.getContent());
+        }
+
+        String parsedMeta = formatMetadata(data.getMetadata());
+        if (!parsedMeta.isEmpty()) {
+            content.append("\n").append(parsedMeta);
         }
 
         return content.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String formatMetadata(String metadataJson) {
+        if (metadataJson == null || metadataJson.isEmpty() || metadataJson.equals("null")) {
+            return "";
+        }
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> map = mapper.readValue(metadataJson, new TypeReference<>() {});
+            StringBuilder sb = new StringBuilder();
+
+            Map<String, String> labelMap = Map.ofEntries(
+                Map.entry("duration", "기간"),
+                Map.entry("startDate", "시작일"),
+                Map.entry("endDate", "종료일"),
+                Map.entry("role", "역할"),
+                Map.entry("techStack", "기술스택"),
+                Map.entry("company", "회사"),
+                Map.entry("team", "팀"),
+                Map.entry("position", "직책"),
+                Map.entry("department", "부서"),
+                Map.entry("totalPeriod", "총 기간"),
+                Map.entry("goals", "목표"),
+                Map.entry("achievements", "성과"),
+                Map.entry("background", "배경"),
+                Map.entry("proficiency", "숙련도"),
+                Map.entry("years", "경험"),
+                Map.entry("school", "학교"),
+                Map.entry("major", "전공"),
+                Map.entry("degree", "학위"),
+                Map.entry("gpa", "학점")
+            );
+
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                String label = labelMap.getOrDefault(entry.getKey(), entry.getKey());
+                Object value = entry.getValue();
+                if (value instanceof List) {
+                    List<?> list = (List<?>) value;
+                    if (!list.isEmpty() && list.get(0) instanceof String) {
+                        sb.append(label).append(": ").append(String.join(", ", (List<String>) value)).append("\n");
+                    }
+                } else if (value instanceof String && !((String) value).isEmpty()) {
+                    sb.append(label).append(": ").append(value).append("\n");
+                }
+            }
+            return sb.toString().trim();
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     /**
