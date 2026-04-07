@@ -42,6 +42,8 @@ export interface ChatMessage {
   timestamp: Date;
   // 백엔드 오류 여부 (오류 시 채팅 버블을 연한 빨간색으로 표시)
   isError?: boolean;
+  // 응답 생성 중 상태 (스피너 표시)
+  isLoading?: boolean;
 }
 
 // SSE 이벤트 타입

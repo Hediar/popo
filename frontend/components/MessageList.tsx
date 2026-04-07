@@ -33,7 +33,14 @@ export default function MessageList({ messages }: MessageListProps) {
                   <span className="text-xs font-bold text-slate-500 dark:text-slate-400">User</span>
                 </div>
                 <div className="bg-primary text-white p-4 rounded-2xl rounded-tr-none shadow-lg shadow-primary/20 text-sm">
-                  <MarkdownText text={formattedContent} />
+                  {message.isLoading && formattedContent.trim().length === 0 ? (
+                    <span
+                      className="inline-block size-5 border-2 border-white/50 border-t-white rounded-full animate-spin"
+                      aria-label="로딩 중"
+                    />
+                  ) : (
+                    <MarkdownText text={formattedContent} />
+                  )}
                 </div>
               </div>
             </div>
@@ -61,7 +68,14 @@ export default function MessageList({ messages }: MessageListProps) {
                   } p-4 rounded-2xl rounded-tl-none shadow-sm`
                 }
               >
-                <MarkdownText text={formattedContent} />
+                {message.isLoading && formattedContent.trim().length === 0 ? (
+                  <span
+                    className="inline-block size-5 border-2 border-slate-400/60 border-t-slate-600 dark:border-slate-600/60 dark:border-t-slate-300 rounded-full animate-spin"
+                    aria-label="로딩 중"
+                  />
+                ) : (
+                  <MarkdownText text={formattedContent} />
+                )}
               </div>
             </div>
           </div>
