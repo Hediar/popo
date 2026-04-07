@@ -2,16 +2,14 @@ package com.example.popobackend.service;
 
 import com.example.popobackend.exception.OpenAIException;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class OpenAIService {
@@ -26,10 +24,6 @@ public class OpenAIService {
 
     private ChatClient chatClient;
 
-    /**
-     * ChatClient 초기화
-     * 시스템 프롬프트를 기본으로 설정
-     */
     private ChatClient getChatClient() {
         if (chatClient == null) {
             chatClient = chatClientBuilder
@@ -40,20 +34,12 @@ public class OpenAIService {
     }
 
     /**
-     * RAG 패턴으로 AI 응답 생성
-     * (Retrieval Augmented Generation)
-     *
-     * @param userMessage 사용자 메시지
-     * @param context 벡터 검색으로 찾은 컨텍스트
-     * @param conversationHistory 이전 대화 내역
-     * @return AI 응답
+     * 기존 동기 방식 응답 생성 (호환성 유지)
      */
     public String generateResponse(String userMessage, String context, List<String> conversationHistory) {
-        // RAG 프롬프트 구성
         String userPrompt = buildRAGPrompt(userMessage, context, conversationHistory);
 
         try {
-            // OpenAI API 호출
             String response = getChatClient()
                     .prompt()
                     .user(userPrompt)
@@ -62,50 +48,58 @@ public class OpenAIService {
 
             return response;
         } catch (Exception e) {
-            // 에러 메시지 분석
-            String errorMessage = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-
-            // HTTP 에러 코드 또는 키워드 기반 예외 분류
-            if (errorMessage.contains("401") || errorMessage.contains("unauthorized") || errorMessage.contains("invalid api key")) {
-                throw OpenAIException.unauthorized("OpenAI API 인증에 실패했습니다. API 키를 확인해주세요.", e);
-            } else if (errorMessage.contains("429") || errorMessage.contains("rate limit") || errorMessage.contains("too many requests")) {
-                throw OpenAIException.rateLimitExceeded("OpenAI API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.", e);
-            } else if (errorMessage.contains("503") || errorMessage.contains("service unavailable")) {
-                throw OpenAIException.serviceUnavailable("OpenAI 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.", e);
-            } else if (errorMessage.contains("500") || errorMessage.contains("internal server error")) {
-                throw OpenAIException.serverError("OpenAI 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", e);
-            } else if (errorMessage.contains("400") || errorMessage.contains("bad request") || errorMessage.contains("invalid request")) {
-                throw OpenAIException.badRequest("잘못된 요청입니다. 요청 내용을 확인해주세요.", e);
-            } else {
-                throw OpenAIException.unknown("AI 응답 생성 중 오류가 발생했습니다: " + e.getMessage(), e);
-            }
+            throw classifyException(e);
         }
     }
 
     /**
-     * RAG 패턴 프롬프트 구성
-     * 시스템 역할 + 검색 컨텍스트 + 대화 내역 + 현재 질문
-     *
-     * @param userMessage 사용자 메시지
-     * @param context 검색된 컨텍스트
-     * @param conversationHistory 대화 내역
-     * @return 완전한 프롬프트
+     * Streaming 방식 응답 생성
+     * 토큰 단위로 Flux<String>을 반환하여 SSE로 전송
      */
+    public Flux<String> generateResponseStream(String userMessage, String context, List<String> conversationHistory) {
+        String userPrompt = buildRAGPrompt(userMessage, context, conversationHistory);
+
+        try {
+            return getChatClient()
+                    .prompt()
+                    .user(userPrompt)
+                    .stream()
+                    .content();
+        } catch (Exception e) {
+            throw classifyException(e);
+        }
+    }
+
+    private RuntimeException classifyException(Exception e) {
+        String errorMessage = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+
+        if (errorMessage.contains("401") || errorMessage.contains("unauthorized") || errorMessage.contains("invalid api key")) {
+            return OpenAIException.unauthorized("OpenAI API 인증에 실패했습니다. API 키를 확인해주세요.", e);
+        } else if (errorMessage.contains("429") || errorMessage.contains("rate limit") || errorMessage.contains("too many requests")) {
+            return OpenAIException.rateLimitExceeded("OpenAI API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.", e);
+        } else if (errorMessage.contains("503") || errorMessage.contains("service unavailable")) {
+            return OpenAIException.serviceUnavailable("OpenAI 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.", e);
+        } else if (errorMessage.contains("500") || errorMessage.contains("internal server error")) {
+            return OpenAIException.serverError("OpenAI 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", e);
+        } else if (errorMessage.contains("400") || errorMessage.contains("bad request") || errorMessage.contains("invalid request")) {
+            return OpenAIException.badRequest("잘못된 요청입니다. 요청 내용을 확인해주세요.", e);
+        } else {
+            return OpenAIException.unknown("AI 응답 생성 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+    }
+
     private String buildRAGPrompt(String userMessage, String context, List<String> conversationHistory) {
         StringBuilder prompt = new StringBuilder();
 
-        // 1. 기본 프로필 정보 (DB에서 조회)
         prompt.append("=== 내 프로필 정보 ===\n");
         String profileContext = profileService.buildProfileContext();
         prompt.append(profileContext).append("\n");
 
-        // 2. 검색된 컨텍스트 (있는 경우에만)
         if (context != null && !context.isEmpty() && !context.contains("없습니다")) {
             prompt.append("=== 검색된 관련 정보 ===\n");
             prompt.append(context).append("\n\n");
         }
 
-        // 3. 이전 대화 내역 (최근 100개까지, 현재 질문은 포함하지 않음)
         if (conversationHistory != null && !conversationHistory.isEmpty()) {
             int start = Math.max(0, conversationHistory.size() - 100);
             int count = conversationHistory.size() - start;
@@ -120,27 +114,20 @@ public class OpenAIService {
             log.info("[RAGPrompt] 이전 대화 없음 (첫 질문)");
         }
 
-        // 4. 답변 지침
         prompt.append("=== 답변 지침 ===\n");
         prompt.append("위 프로필 정보와 검색된 관련 정보를 모두 활용해서 답변해주세요.\n");
         prompt.append("검색 결과가 여러 건이면 빠짐없이 포함하세요.\n");
         prompt.append("메타데이터의 '기간', '역할', '기술스택' 등도 답변에 활용하세요.\n\n");
 
-        // 5. 현재 질문
         prompt.append("=== 현재 질문 ===\n");
         prompt.append("사용자: ").append(userMessage).append("\n");
 
         return prompt.toString();
     }
 
-    /**
-     * 시스템 프롬프트 생성
-     * AI의 역할과 행동 방식 정의
-     *
-     * @return 시스템 프롬프트
-     */
     private String buildSystemPrompt() {
         return """
+                ■ 역할
                 너는 포트폴리오 주인 본인처럼 행동하는 AI야. "AI 어시스턴트"가 아니라, 포트폴리오 주인 그 자체로 대화해.
 
                 ■ 핵심 원칙
@@ -171,4 +158,3 @@ public class OpenAIService {
                 """;
     }
 }
-

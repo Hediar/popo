@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -127,6 +128,83 @@ public class ChatService {
         session.setMessages(new ArrayList<>());
         return session;
     }
+
+    /**
+     * Streaming 방식 메시지 처리
+     * 벡터 검색 + 세션 준비까지는 동기로 수행하고, AI 응답만 streaming으로 반환
+     *
+     * @return StreamContext (sessionId, Flux<String>, 세션 저장에 필요한 정보)
+     */
+    @Transactional
+    public StreamContext processMessageStream(String sessionId, String userMessage, String clientIp) {
+        // 1~3단계: 세션 조회/생성, 대화 내역, 벡터 검색 (동기)
+        ChatSession session;
+        List<MessageDto> existingMessages;
+
+        if (sessionId != null && !sessionId.isEmpty()) {
+            session = chatSessionRepository.findBySessionId(sessionId).orElse(null);
+            if (session != null) {
+                existingMessages = session.getMessages() != null ? session.getMessages() : new ArrayList<>();
+            } else {
+                session = createNewSession(sessionId, clientIp);
+                existingMessages = new ArrayList<>();
+            }
+        } else {
+            String newSessionId = SessionIdGenerator.generate();
+            session = createNewSession(newSessionId, clientIp);
+            existingMessages = new ArrayList<>();
+        }
+
+        int totalMessages = existingMessages.size();
+        int start = Math.max(0, totalMessages - 100);
+        List<String> conversationHistory = existingMessages.subList(start, totalMessages).stream()
+                .map(msg -> msg.getRole() + ": " + msg.getContent())
+                .collect(Collectors.toList());
+
+        List<SearchResult> searchResults = vectorSearchService.search(userMessage);
+        String context = vectorSearchService.buildContext(searchResults);
+
+        // 4단계: AI Streaming 응답 생성
+        Flux<String> responseStream = openAIService.generateResponseStream(userMessage, context, conversationHistory);
+
+        return new StreamContext(session.getSessionId(), responseStream, session, existingMessages, userMessage);
+    }
+
+    /**
+     * Streaming 완료 후 세션에 메시지 저장
+     */
+    @Transactional
+    public void saveStreamedMessage(ChatSession session, List<MessageDto> existingMessages, String userMessage, String aiResponse) {
+        List<MessageDto> updatedMessages = new ArrayList<>(existingMessages);
+        updatedMessages.add(new MessageDto("user", userMessage, LocalDateTime.now()));
+        updatedMessages.add(new MessageDto("assistant", aiResponse, LocalDateTime.now()));
+
+        if (session.getId() == null) {
+            session.setMessages(updatedMessages);
+            chatSessionRepository.saveAndFlush(session);
+        } else {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.registerModule(new JavaTimeModule());
+                String messagesJson = mapper.writeValueAsString(updatedMessages);
+                chatSessionRepository.updateMessagesBySessionId(session.getSessionId(), messagesJson);
+            } catch (JsonProcessingException e) {
+                log.error("[ChatService] JSON 직렬화 실패: {}", e.getMessage());
+                throw new RuntimeException("메시지 저장 실패", e);
+            }
+        }
+    }
+
+    /**
+     * Streaming 컨텍스트 - 컨트롤러에서 사용
+     */
+    public record StreamContext(
+        String sessionId,
+        Flux<String> responseStream,
+        ChatSession session,
+        List<MessageDto> existingMessages,
+        String userMessage
+    ) {}
 
     /**
      * 세션 종료
