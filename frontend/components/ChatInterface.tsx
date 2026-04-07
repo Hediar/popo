@@ -15,7 +15,7 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 	const [input, setInput] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const [sessionId, setSessionId] = useState<string | null>(null);
-	const eventSourceRef = useRef<EventSource | null>(null);
+	const abortRef = useRef<AbortController | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const suggestedQuestions: string[] = [
 		"어떤 프로젝트들을 경험했나요?",
@@ -60,9 +60,10 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 		setMessages((prev) => [...prev, assistantMessage]);
 
 		if (useStream) {
-			// SSE 스트리밍 시도
-			eventSourceRef.current = createChatStream(
+			// SSE 스트리밍 (POST 기반)
+			abortRef.current = createChatStream(
 				userMessage.content,
+				sessionId,
 				(content) => {
 					setMessages((prev) =>
 						prev.map((msg) =>
@@ -72,14 +73,17 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 						),
 					);
 				},
+				(newSessionId) => {
+					setSessionId(newSessionId);
+				},
 				() => {
 					setIsLoading(false);
 				},
 				async (_error) => {
 					// 스트리밍 에러 시 POST API로 폴백
 					console.error("Stream error, falling back to POST:", _error);
-					eventSourceRef.current?.close();
-					eventSourceRef.current = null;
+					abortRef.current?.abort();
+					abortRef.current = null;
 					try {
 						const res = await sendChatMessage(userMessage.content, sessionId);
 						if (res.sessionId) setSessionId(res.sessionId);
@@ -144,11 +148,11 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 		await sendText(input.trim());
 	};
 
-	// 컴포넌트 언마운트 시 EventSource 정리
+	// 컴포넌트 언마운트 시 스트림 정리
 	useEffect(() => {
 		return () => {
-			if (eventSourceRef.current) {
-				eventSourceRef.current.close();
+			if (abortRef.current) {
+				abortRef.current.abort();
 			}
 		};
 	}, []);
