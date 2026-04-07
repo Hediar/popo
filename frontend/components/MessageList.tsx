@@ -1,6 +1,7 @@
 'use client';
 
 import { ChatMessage } from '@/lib/types';
+import MarkdownText from './MarkdownText';
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -31,8 +32,8 @@ export default function MessageList({ messages }: MessageListProps) {
                   <span className="text-[10px] text-slate-400">{timeString}</span>
                   <span className="text-xs font-bold text-slate-500 dark:text-slate-400">User</span>
                 </div>
-                <div className="bg-primary text-white p-4 rounded-2xl rounded-tr-none shadow-lg shadow-primary/20 text-sm leading-relaxed whitespace-pre-line">
-                  {formattedContent}
+                <div className="bg-primary text-white p-4 rounded-2xl rounded-tr-none shadow-lg shadow-primary/20 text-sm">
+                  <MarkdownText text={formattedContent} />
                 </div>
               </div>
             </div>
@@ -57,10 +58,10 @@ export default function MessageList({ messages }: MessageListProps) {
                     isError
                       ? 'bg-red-100 border border-red-200 text-red-900 dark:bg-red-950/40 dark:border-red-800'
                       : 'bg-slate-100 dark:bg-slate-800'
-                  } p-4 rounded-2xl rounded-tl-none shadow-sm text-sm leading-relaxed whitespace-pre-line`
+                  } p-4 rounded-2xl rounded-tl-none shadow-sm`
                 }
               >
-                {formattedContent}
+                <MarkdownText text={formattedContent} />
               </div>
             </div>
           </div>
