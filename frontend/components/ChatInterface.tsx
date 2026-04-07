@@ -47,14 +47,15 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 		setInput("");
 		setIsLoading(true);
 
-		// AI 응답을 위한 빈 메시지 생성
+		// AI 응답을 위한 대기 메시지(스피너 표시)
 		const assistantMessageId = (Date.now() + 1).toString();
 		const assistantMessage: ChatMessage = {
 			id: assistantMessageId,
 			role: "assistant",
-			content: useStream ? "" : "응답 생성 중...",
+			content: "",
 			timestamp: new Date(),
 			isError: false,
+			isLoading: true,
 		};
 
 		setMessages((prev) => [...prev, assistantMessage]);
@@ -78,6 +79,9 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 				},
 				() => {
 					setIsLoading(false);
+					setMessages((prev) =>
+						prev.map((m) => (m.id === assistantMessageId ? { ...m, isLoading: false } : m)),
+					);
 				},
 				async (_error) => {
 					// 스트리밍 에러 시 POST API로 폴백
@@ -90,7 +94,7 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 						setMessages((prev) =>
 							prev.map((msg) =>
 								msg.id === assistantMessageId
-									? { ...msg, content: res.message, isError: false }
+									? { ...msg, content: res.message, isError: false, isLoading: false }
 									: msg,
 							),
 						);
@@ -102,7 +106,7 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 						setMessages((prev) =>
 							prev.map((msg) =>
 								msg.id === assistantMessageId
-									? { ...msg, content: errorText, isError: true }
+									? { ...msg, content: errorText, isError: true, isLoading: false }
 									: msg,
 							),
 						);
@@ -119,7 +123,7 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 				setMessages((prev) =>
 					prev.map((msg) =>
 						msg.id === assistantMessageId
-							? { ...msg, content: res.message, isError: false }
+							? { ...msg, content: res.message, isError: false, isLoading: false }
 							: msg,
 					),
 				);
@@ -132,7 +136,7 @@ export default function ChatInterface({ introImages }: ChatInterfaceProps) {
 				setMessages((prev) =>
 					prev.map((msg) =>
 						msg.id === assistantMessageId
-							? { ...msg, content: errorText, isError: true }
+							? { ...msg, content: errorText, isError: true, isLoading: false }
 							: msg,
 					),
 				);
